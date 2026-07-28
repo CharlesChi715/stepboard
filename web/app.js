@@ -181,9 +181,12 @@ document.addEventListener("keydown", (e) => {
   else focusTerminal();
 }, true);
 /* terminal side (same-origin via /term/ proxy): same key jumps back out */
-termFrame.addEventListener("load", () => {
+function hookTerminal() {
   try {
     const d = termFrame.contentDocument;
+    // only the real terminal document (not the transient about:blank), once
+    if (!d || !d.location.pathname.startsWith("/term") || d.__sbHooked) return;
+    d.__sbHooked = true;
     d.addEventListener("keydown", (e) => {
       if (isToggleKey(e)) { e.preventDefault(); e.stopImmediatePropagation(); $("prompt").focus(); }
     }, true);
@@ -211,7 +214,11 @@ termFrame.addEventListener("load", () => {
     for (const t of ["mousedown", "mouseup", "click", "dblclick"])
       d.addEventListener(t, forceSelect, true);
   } catch (err) { console.log("terminal hooks unavailable:", err); }
-});
+}
+/* the iframe often finishes loading BEFORE this script runs (fast localhost),
+   so hook immediately as well as on every (re)load */
+termFrame.addEventListener("load", hookTerminal);
+hookTerminal();
 /* ── Pace panel ─────────────────────────────────────────────────────────
    Claude (once asked via the button) saves each answer as numbered
    paragraphs to a digest file; we poll it and render each paragraph as a
@@ -222,7 +229,7 @@ function paceInstruction() {
   return "From now on in this session, whenever you give me a substantive answer or " +
     "explanation, ALSO save it to " + digestPath + " (overwrite the whole file each time) " +
     "as plain markdown of numbered paragraphs (1., 2., 3. — one idea per paragraph, " +
-    "whatever length each idea needs). Use your Write tool for that silently right " +
+    "). Use your Write tool for that silently right " +
     "after answering; don't mention doing it. Keep your chat answer itself unchanged.";
 }
 $("paceEnable").onclick = () => api("/send", { text: paceInstruction() });

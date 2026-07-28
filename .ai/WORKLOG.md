@@ -62,3 +62,8 @@
   drifts while dragging" was native drag leaking through).
 - Pace instruction relaxed: numbered paragraphs stay, the 2-4-sentence cap dropped
   (one idea per paragraph, natural length).
+- Real cause of selection still failing: iframe load race — on fast localhost the terminal
+  iframe finishes loading before app.js runs, so the load-event hooks (selection
+  interception, ⇧⌘↵) never attached. hookTerminal() now runs immediately AND on load,
+  guarded against double-attach. Verified server side separately: ttyd delivers
+  macOptionClickForcesSelection:true in SET_PREFERENCES over the WS.
