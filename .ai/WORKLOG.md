@@ -27,3 +27,6 @@
 - Mode bar rework: shows only the outgoing instruction above the input bar (descriptions
   removed), ✎ edit button with per-mode overrides, per-mode sent-memory (switching back
   to an already-sent mode doesn't re-queue; re-click active mode to force resend).
+- Pane switching remapped: Tab restored to normal behavior; ⌘← focuses the CLI pane,
+  ⌘→ focuses the sidebar input (both intercepted in page and terminal, blocking
+  browser history navigation).
