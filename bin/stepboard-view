@@ -6,7 +6,7 @@ Serves web/view.html (edit that file freely — it's the whole UI) and exposes:
   POST /key  {"key": "Escape"}                press a single key (whitelisted)
   GET  /health                                {"ok": true, "session": "..."}
 
-The terminal itself is NOT re-rendered here: the page iframes ttyd (stepboard-web),
+The terminal itself is NOT re-rendered here: the page iframes ttyd (stepboard-term),
 and /send drives the same tmux session from custom UI. Localhost only.
 """
 import http.client
@@ -118,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self.proxy_http()
         except Exception as e:
-            try: self.reply(502, {"error": f"terminal proxy: {e} — is stepboard-web running?"})
+            try: self.reply(502, {"error": f"terminal proxy: {e} — is stepboard-term running?"})
             except OSError: pass
         return True
 

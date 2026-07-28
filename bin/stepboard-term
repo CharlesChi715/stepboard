@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# stepboard-web — talk to Claude Code (or any CLI agent) in a browser tab.
+# stepboard-term — talk to Claude Code (or any CLI agent) in a browser tab.
 #
 # Usage:
-#   stepboard-web [project-dir]     # default: current directory
+#   stepboard-term [project-dir]     # default: current directory
 #
 # Env overrides:
 #   STEPBOARD_PORT=4870      port to serve on

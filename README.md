@@ -9,16 +9,16 @@ construction — spinners, colors, permission prompts, everything.
 ## Use
 
 ```sh
-stepboard-web              # serve Claude Code in the current directory
-stepboard-web ~/my/project # ...or in a specific project
+stepboard-term              # serve Claude Code in the current directory
+stepboard-term ~/my/project # ...or in a specific project
 ```
 
 A tab opens at http://127.0.0.1:4870. Type there like you would in the terminal.
 `Ctrl+C` in the launching terminal stops the server (the tmux session — and your
 conversation — survives; rerun to reattach).
 
-- Different agent: `STEPBOARD_AGENT=codex stepboard-web`
-- Different port: `STEPBOARD_PORT=4999 stepboard-web`
+- Different agent: `STEPBOARD_AGENT=codex stepboard-term`
+- Different port: `STEPBOARD_PORT=4999 stepboard-term`
 - Attach from a normal terminal too: `tmux attach -t stepboard`
 
 ## Requirements
