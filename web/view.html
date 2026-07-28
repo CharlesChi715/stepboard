@@ -137,6 +137,8 @@ function flash(msg, ok = true) {
   s.textContent = msg; s.style.color = ok ? "var(--ok)" : "#c03a2e";
   setTimeout(() => (s.textContent = ""), 2000);
 }
+/* surface page errors instead of silently losing features */
+window.addEventListener("error", (e) => flash("page error: " + e.message, false));
 
 function sendPrompt() {
   const t = $("prompt").value.trim();

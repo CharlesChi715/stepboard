@@ -42,3 +42,6 @@
 - Shift+Tab mode cycling now works anywhere outside the terminal pane (was input-only).
 - Two-state focus model: any click outside the CLI pane (not on a text field, not while
   selecting text) auto-focuses the input bar; Shift+Tab cycles modes in that whole state.
+- Likely cause of "features not working after reload": no cache headers → browser served
+  stale page. Server now sends Cache-Control: no-store on everything; page errors now
+  flash visibly (window error trap) instead of silently killing later features.
