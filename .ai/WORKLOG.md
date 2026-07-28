@@ -6,3 +6,6 @@
 - Moved full design (context bar + tickable step board) here as docs/DESIGN.md — MVP
   implements only its "Tier 1 chat pane".
 - Symlinked stepboard-web into ~/Documents/bin.
+- Fix: launcher now strips leaked CLAUDE_*/AI_AGENT env vars so a nested launch
+  (from hooks/background jobs) starts a fresh claude instead of attaching to the
+  running session. Found during live verification.
