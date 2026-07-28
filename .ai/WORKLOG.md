@@ -38,3 +38,4 @@
   intercepted on both sides of the iframe).
 - Fix: ✎ edit is now available in every mode state (was unreachable once an instruction
   had been sent); saving an edit queues the new instruction with the next message.
+- Active mode's instruction text now always shown (slightly dimmed when already sent).

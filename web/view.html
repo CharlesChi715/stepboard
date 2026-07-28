@@ -212,11 +212,10 @@ function renderModes() {
   edit.onclick = () => { editing = true; renderModes(); };
   label.appendChild(edit);
   box.appendChild(label);
-  if (modePending) {
-    const text = document.createElement("div"); text.textContent = modePrompt(activeMode);
-    text.style.cssText = "margin-top:4px;font-style:italic";
-    box.appendChild(text);
-  }
+  /* the instruction text is always visible for the active mode */
+  const text = document.createElement("div"); text.textContent = modePrompt(activeMode);
+  text.style.cssText = "margin-top:4px;font-style:italic" + (modePending ? "" : ";opacity:.7");
+  box.appendChild(text);
 }
 /* prepend the mode instruction once, on the first send after switching */
 function withMode(text) {
