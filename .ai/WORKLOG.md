@@ -39,3 +39,4 @@
 - Fix: ✎ edit is now available in every mode state (was unreachable once an instruction
   had been sent); saving an edit queues the new instruction with the next message.
 - Active mode's instruction text now always shown (slightly dimmed when already sent).
+- Shift+Tab mode cycling now works anywhere outside the terminal pane (was input-only).
