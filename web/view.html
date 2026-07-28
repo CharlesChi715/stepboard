@@ -106,16 +106,12 @@
 /* ── Help levels: most-auto → you-as-master. Edit names/prompts freely. ── */
 const MODES = [
   { name: "✈️ Autopilot",
-    desc: "Claude runs the whole series itself, makes the tiny decisions, reports when done.",
     prompt: "MODE: Autopilot. From now on work autonomously end-to-end: plan briefly, then execute the whole series of tasks without waiting for me. Make small decisions yourself and note them in one line each. Only stop for destructive/irreversible actions or genuinely major direction choices. Finish with a concise summary of what you did and decided." },
   { name: "🤝 Copilot",
-    desc: "Works in chunks; reports after each and waits for your go. Asks about anything that shapes the outcome.",
     prompt: "MODE: Copilot. From now on work in meaningful chunks. After each chunk, stop: report what you did and what you propose next in 2-3 bullets, then wait for my go. Decide trivial things yourself; ask me about anything that shapes the outcome." },
   { name: "🧭 Advisor",
-    desc: "Never acts unasked: proposes 2–4 next steps with pros/cons, you pick, it executes only that.",
     prompt: "MODE: Advisor. From now on, before doing anything, propose the 2-4 possible next steps, each with one-line pros and cons, and mark which you recommend. Wait for my choice. Execute ONLY the step I pick, then stop and propose again. Never chain steps without asking." },
   { name: "🎓 Mentor",
-    desc: "You do everything; Claude guides slowly like a senior engineer — options, pros/cons, questions. You're the master.",
     prompt: "MODE: Mentor. From now on do NOT do the work for me — I do everything myself; you are a senior engineer mentoring me. Go slowly, one small step at a time: explain what to do next and why, show me exactly what to run or write, give options with pros and cons, then wait for me to do it and report back before continuing. Ask me questions and make me decide. Never edit files or run commands yourself unless I explicitly ask." },
 ];
 
@@ -152,11 +148,22 @@ $("prompt").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendPrompt(); }
 });
 
-/* help-level bar — selecting a mode shows its instruction here; it is sent
-   to the CLI together with your NEXT message (never typed in by itself) */
+/* help-level bar — selecting a mode shows ONLY the instruction that will be
+   sent (with your next message). Each mode's instruction is sent at most once:
+   switching away and back does NOT queue it again (Claude already knows it).
+   Click the active mode again to force a resend; ✎ edits the instruction. */
 let activeMode = localStorage.getItem("sb-mode") || "";
 let modePending = localStorage.getItem("sb-mode-pending") === "1";
-function setPending(v) { modePending = v; localStorage.setItem("sb-mode-pending", v ? "1" : "0"); }
+let sentModes = JSON.parse(localStorage.getItem("sb-mode-sent") || "{}");
+let overrides = JSON.parse(localStorage.getItem("sb-mode-overrides") || "{}");
+let editing = false;
+const modePrompt = (name) => overrides[name] || (MODES.find((m) => m.name === name) || {}).prompt || "";
+function saveModeState() {
+  localStorage.setItem("sb-mode", activeMode);
+  localStorage.setItem("sb-mode-pending", modePending ? "1" : "0");
+  localStorage.setItem("sb-mode-sent", JSON.stringify(sentModes));
+  localStorage.setItem("sb-mode-overrides", JSON.stringify(overrides));
+}
 function renderModes() {
   const bar = $("modes"); bar.innerHTML = "";
   for (const m of MODES) {
@@ -164,23 +171,47 @@ function renderModes() {
     b.textContent = m.name;
     if (m.name === activeMode) b.classList.add("active");
     b.onclick = () => {
-      activeMode = m.name; localStorage.setItem("sb-mode", activeMode);
-      setPending(true); renderModes();
+      editing = false;
+      if (activeMode === m.name) modePending = !modePending;      // re-click: toggle resend
+      else { activeMode = m.name; modePending = !sentModes[m.name]; } // sent before? don't queue
+      saveModeState(); renderModes();
     };
     bar.appendChild(b);
   }
-  const cur = MODES.find((m) => m.name === activeMode);
-  $("modedesc").innerHTML = !cur
-    ? "No mode set — click one to choose how much Claude takes over."
-    : `<b>${cur.name}</b> — ${cur.desc}` +
-      (modePending
-        ? `<br><span style="color:var(--accent)">will be sent with your next message:</span> <i>${cur.prompt}</i>`
-        : `<br>instruction already sent — Claude is in this mode.`);
+  const box = $("modedesc"); box.innerHTML = "";
+  if (!activeMode) { box.textContent = "No mode set — click one to choose how much Claude takes over."; return; }
+  if (!modePending) {
+    box.textContent = "instruction already sent — click the mode again to resend, ✎ to change it.";
+    return;
+  }
+  if (editing) {
+    const ta = document.createElement("textarea"); ta.value = modePrompt(activeMode);
+    ta.style.minHeight = "90px";
+    const save = document.createElement("button"); save.textContent = "Save"; save.className = "primary";
+    save.onclick = () => { overrides[activeMode] = ta.value.trim(); delete sentModes[activeMode];
+                           modePending = true; editing = false; saveModeState(); renderModes(); };
+    const cancel = document.createElement("button"); cancel.textContent = "Cancel";
+    cancel.onclick = () => { editing = false; renderModes(); };
+    const row = document.createElement("div"); row.className = "row"; row.style.marginTop = "6px";
+    row.append(save, cancel); box.append(ta, row);
+  } else {
+    const label = document.createElement("div");
+    label.innerHTML = `<span style="color:var(--accent)">will be sent with your next message</span> `;
+    const edit = document.createElement("button"); edit.textContent = "✎ edit";
+    edit.style.cssText = "padding:1px 8px;font-size:11px";
+    edit.onclick = () => { editing = true; renderModes(); };
+    label.appendChild(edit);
+    const text = document.createElement("div"); text.textContent = modePrompt(activeMode);
+    text.style.cssText = "margin-top:4px;font-style:italic";
+    box.append(label, text);
+  }
 }
 /* prepend the mode instruction once, on the first send after switching */
 function withMode(text) {
-  const cur = MODES.find((m) => m.name === activeMode);
-  if (cur && modePending) { setPending(false); renderModes(); return cur.prompt + "\n\n" + text; }
+  if (activeMode && modePending) {
+    modePending = false; sentModes[activeMode] = 1; saveModeState(); renderModes();
+    return modePrompt(activeMode) + "\n\n" + text;
+  }
   return text;
 }
 renderModes();

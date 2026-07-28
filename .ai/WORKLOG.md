@@ -20,3 +20,10 @@
   intercept plain Tab inside the terminal — Tab toggles terminal ⇄ sidebar input, input
   auto-focused on switch. Mode click no longer types into the CLI: the instruction shows
   above the input bar and is prepended once to the next message sent.
+- Fixed "reconnecting" loop: proxy_ws rebuilt the handshake with str(headers), whose
+  trailing blank line + our terminator left 2 stray bytes that ttyd parsed as a bogus
+  WS frame → drop. Now byte-exact reconstruction; verified 45s idle survival with
+  ping/pong. Also removed read timeout on the tunnel (connect-timeout only).
+- Mode bar rework: shows only the outgoing instruction above the input bar (descriptions
+  removed), ✎ edit button with per-mode overrides, per-mode sent-memory (switching back
+  to an already-sent mode doesn't re-queue; re-click active mode to force resend).

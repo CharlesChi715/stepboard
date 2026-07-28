@@ -59,7 +59,14 @@ class Handler(BaseHTTPRequestHandler):
     def proxy_ws(self):
         """Raw two-way tunnel for the terminal's WebSocket."""
         up = socket.create_connection((TTYD_HOST, TTYD_PORT), timeout=10)
-        req = f"{self.command} {self.path} HTTP/1.1\r\n" + str(self.headers) + "\r\n"
+        up.settimeout(None)          # connect timeout only — an idle terminal must not
+        self.connection.settimeout(None)  # kill the tunnel (WS sits quiet for minutes)
+        # rebuild the request byte-exactly: exactly ONE blank line at the end —
+        # str(self.headers) adds its own trailing blank line, and any stray bytes
+        # after it are parsed by ttyd as a bogus WS frame (kills the connection)
+        lines = [f"{self.command} {self.path} HTTP/1.1"]
+        lines += [f"{k}: {v}" for k, v in self.headers.items()]
+        req = "\r\n".join(lines) + "\r\n\r\n"
         up.sendall(req.encode())
         down = self.connection
         def pump(src, dst):
