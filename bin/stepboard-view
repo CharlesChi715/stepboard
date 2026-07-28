@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """stepboard-view — a tiny, fully-customizable web view around the Claude Code CLI.
 
-Serves web/view.html (edit that file freely — it's the whole UI) and exposes:
+Serves the UI (web/view.html + style.css + app.js — edit freely) and exposes:
   POST /send {"text": "...", "enter": true}   type text into the agent's tmux session
   POST /key  {"key": "Escape"}                press a single key (whitelisted)
   GET  /health                                {"ok": true, "session": "..."}
@@ -24,7 +24,10 @@ PORT = int(os.environ.get("STEPBOARD_VIEW_PORT", "4871"))
 SESSION = os.environ.get("STEPBOARD_SESSION", "stepboard")
 TTYD_HOST = os.environ.get("STEPBOARD_TTYD_HOST", "127.0.0.1")
 TTYD_PORT = int(os.environ.get("STEPBOARD_TTYD_PORT", "4870"))
-HTML = Path(__file__).resolve().parent.parent / "web" / "view.html"
+WEB = Path(__file__).resolve().parent.parent / "web"
+HTML = WEB / "view.html"
+STATIC = {"/style.css": ("style.css", "text/css"),
+          "/app.js": ("app.js", "text/javascript")}
 ALLOWED_KEYS = {"Escape", "Enter", "Up", "Down", "Tab"}
 HOP_HEADERS = {"connection", "keep-alive", "transfer-encoding", "upgrade",
                "proxy-connection", "te", "trailers"}
@@ -127,6 +130,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path in ("/", "/index.html"):
             self.reply(200, body=HTML.read_bytes(), ctype="text/html; charset=utf-8")
+        elif self.path in STATIC:
+            name, ctype = STATIC[self.path]
+            self.reply(200, body=(WEB / name).read_bytes(), ctype=f"{ctype}; charset=utf-8")
         elif self.path == "/health":
             self.reply(200, {"ok": True, "session": SESSION})
         else:

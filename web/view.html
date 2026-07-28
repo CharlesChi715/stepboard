@@ -3,59 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>StepBoard</title>
-<style>
-  /* ── This whole file is yours. Edit anything. ─────────────────────────── */
-  :root {
-    --bg: #f5f6f8; --panel: #ffffff; --ink: #1c2534; --muted: #5c6878;
-    --line: #dce1e9; --accent: #2b44c4; --ok: #1e7a40;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #10151d; --panel: #161e2a; --ink: #e7ecf4; --muted: #8fa0b4;
-            --line: #2a3546; --accent: #8ca2ff; --ok: #4fc578; }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; height: 100vh; display: grid; grid-template-rows: 44px 1fr;
-         font: 14px/1.5 -apple-system, system-ui, sans-serif;
-         background: var(--bg); color: var(--ink); }
-
-  /* top bar — the "fixed bar" area, fully yours to customize */
-  header { display: flex; align-items: center; gap: 12px; padding: 0 14px;
-           background: var(--panel); border-bottom: 2px solid var(--accent); }
-  header .title { font-weight: 650; }
-  header .hint { color: var(--muted); font-size: 12px; }
-  #status { margin-left: auto; font-size: 12px; color: var(--ok); }
-
-  main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
-  iframe { width: 100%; height: 100%; border: 0; background: #0d1117; }
-
-  aside { border-left: 1px solid var(--line); background: var(--panel);
-          padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
-  h2 { font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
-       color: var(--muted); margin: 0 0 6px; }
-  textarea { width: 100%; min-height: 74px; resize: vertical; padding: 8px;
-             border: 1px solid var(--line); border-radius: 8px;
-             background: var(--bg); color: var(--ink); font: inherit; }
-  button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px;
-           background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; }
-  button:hover { border-color: var(--accent); color: var(--accent); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .steps { display: flex; flex-direction: column; gap: 6px; }
-  .step { display: flex; gap: 8px; align-items: center; }
-  .step input[type=text] { flex: 1; border: none; background: transparent;
-                           color: var(--ink); font: inherit; outline: none; }
-  .step input[type=text]:focus { border-bottom: 1px solid var(--accent); }
-  .step .del { border: none; background: none; color: var(--muted); cursor: pointer; }
-  input.add { width: 100%; padding: 8px; border: 1px dashed var(--line);
-              border-radius: 8px; background: transparent; color: var(--ink); font: inherit; }
-  .modes { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-  .modes button { flex: 1; border: none; border-radius: 0; padding: 7px 2px; font-size: 12px; }
-  .modes button + button { border-left: 1px solid var(--line); }
-  .modes button.active { background: var(--accent); color: #fff; }
-  .modedesc { font-size: 11px; color: var(--muted); margin-top: 6px; min-height: 30px; }
-  footer { margin-top: auto; font-size: 11px; color: var(--muted); }
-  kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 11px; }
-</style>
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header>
@@ -84,7 +32,7 @@
     </section>
 
     <section>
-      <h2>Quick actions <span style="text-transform:none">(edit QUICK_ACTIONS below)</span></h2>
+      <h2>Quick actions <span style="text-transform:none">(edit QUICK_ACTIONS in app.js)</span></h2>
       <div class="row" id="actions"></div>
     </section>
 
@@ -97,211 +45,12 @@
       </div>
     </section>
 
-    <footer>This page is a plain HTML file you own: <code>web/view.html</code>.
-      Change the layout, add buttons, restyle everything — reload to see it.</footer>
+    <footer>This UI is three plain files you own — <code>web/view.html</code> (structure),
+      <code>web/style.css</code> (looks), <code>web/app.js</code> (behavior, incl. MODES
+      and QUICK_ACTIONS). Edit, reload, done.</footer>
   </aside>
 </main>
 
-<script>
-/* ── Help levels: most-auto → you-as-master. Edit names/prompts freely. ── */
-const MODES = [
-  { name: "✈️ Autopilot",
-    prompt: "MODE: Autopilot. From now on work autonomously end-to-end: plan briefly, then execute the whole series of tasks without waiting for me. Make small decisions yourself and note them in one line each. Only stop for destructive/irreversible actions or genuinely major direction choices. Finish with a concise summary of what you did and decided." },
-  { name: "🤝 Copilot",
-    prompt: "MODE: Copilot. From now on work in meaningful chunks. After each chunk, stop: report what you did and what you propose next in 2-3 bullets, then wait for my go. Decide trivial things yourself; ask me about anything that shapes the outcome." },
-  { name: "🧭 Advisor",
-    prompt: "MODE: Advisor. From now on, before doing anything, propose the 2-4 possible next steps, each with one-line pros and cons, and mark which you recommend. Wait for my choice. Execute ONLY the step I pick, then stop and propose again. Never chain steps without asking." },
-  { name: "🎓 Mentor",
-    prompt: "MODE: Mentor. From now on do NOT do the work for me — I do everything myself; you are a senior engineer mentoring me. Go slowly, one small step at a time: explain what to do next and why, show me exactly what to run or write, give options with pros and cons, then wait for me to do it and report back before continuing. Ask me questions and make me decide. Never edit files or run commands yourself unless I explicitly ask." },
-];
-
-/* ── Customize me: label → what gets typed into Claude ─────────────────── */
-const QUICK_ACTIONS = [
-  { label: "▶ go",           text: "go" },
-  { label: "↻ regenerate",   text: "Regenerate your last answer — improve it." },
-  { label: "✋ interrupt",    key: "Escape" },
-  { label: "🧾 summarize",   text: "Summarize what you've done so far in 5 bullets." },
-];
-
-const $ = (id) => document.getElementById(id);
-
-async function api(path, body) {
-  const r = await fetch(path, { method: "POST",
-    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const j = await r.json();
-  flash(r.ok ? "sent ✓" : "error: " + (j.error || r.status), r.ok);
-  return r.ok;
-}
-function flash(msg, ok = true) {
-  const s = $("status");
-  s.textContent = msg; s.style.color = ok ? "var(--ok)" : "#c03a2e";
-  setTimeout(() => (s.textContent = ""), 2000);
-}
-/* surface page errors instead of silently losing features */
-window.addEventListener("error", (e) => flash("page error: " + e.message, false));
-
-function sendPrompt() {
-  const t = $("prompt").value.trim();
-  if (!t && !modePending) return;
-  const text = withMode(t || "Acknowledge the mode above.");
-  api("/send", { text }).then((ok) => ok && ($("prompt").value = ""));
-}
-$("prompt").addEventListener("keydown", (e) => {
-  /* Enter sends; Shift+Enter makes a newline (default behavior) */
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendPrompt(); }
-});
-/* Shift+Tab cycles help levels — anywhere on the page outside the terminal
-   pane (the terminal keeps its own Shift+Tab for Claude Code's mode cycling) */
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Tab" && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
-    e.preventDefault();
-    const i = MODES.findIndex((m) => m.name === activeMode);
-    const next = MODES[(i + 1) % MODES.length];
-    editing = false; activeMode = next.name; modePending = !sentModes[next.name];
-    saveModeState(); renderModes(); flash(next.name + " selected");
-  }
-}, true);
-
-/* help-level bar — selecting a mode shows ONLY the instruction that will be
-   sent (with your next message). Each mode's instruction is sent at most once:
-   switching away and back does NOT queue it again (Claude already knows it).
-   Click the active mode again to force a resend; ✎ edits the instruction. */
-let activeMode = localStorage.getItem("sb-mode") || "";
-let modePending = localStorage.getItem("sb-mode-pending") === "1";
-let sentModes = JSON.parse(localStorage.getItem("sb-mode-sent") || "{}");
-let overrides = JSON.parse(localStorage.getItem("sb-mode-overrides") || "{}");
-let editing = false;
-const modePrompt = (name) => overrides[name] || (MODES.find((m) => m.name === name) || {}).prompt || "";
-function saveModeState() {
-  localStorage.setItem("sb-mode", activeMode);
-  localStorage.setItem("sb-mode-pending", modePending ? "1" : "0");
-  localStorage.setItem("sb-mode-sent", JSON.stringify(sentModes));
-  localStorage.setItem("sb-mode-overrides", JSON.stringify(overrides));
-}
-function renderModes() {
-  const bar = $("modes"); bar.innerHTML = "";
-  for (const m of MODES) {
-    const b = document.createElement("button");
-    b.textContent = m.name;
-    if (m.name === activeMode) b.classList.add("active");
-    b.onclick = () => {
-      editing = false;
-      if (activeMode === m.name) modePending = !modePending;      // re-click: toggle resend
-      else { activeMode = m.name; modePending = !sentModes[m.name]; } // sent before? don't queue
-      saveModeState(); renderModes();
-    };
-    bar.appendChild(b);
-  }
-  const box = $("modedesc"); box.innerHTML = "";
-  if (!activeMode) { box.textContent = "No mode set — click one to choose how much Claude takes over."; return; }
-  if (editing) {
-    const ta = document.createElement("textarea"); ta.value = modePrompt(activeMode);
-    ta.style.minHeight = "90px";
-    const save = document.createElement("button"); save.textContent = "Save & queue"; save.className = "primary";
-    save.onclick = () => { overrides[activeMode] = ta.value.trim(); delete sentModes[activeMode];
-                           modePending = true; editing = false; saveModeState(); renderModes(); };
-    const cancel = document.createElement("button"); cancel.textContent = "Cancel";
-    cancel.onclick = () => { editing = false; renderModes(); };
-    const row = document.createElement("div"); row.className = "row"; row.style.marginTop = "6px";
-    row.append(save, cancel); box.append(ta, row);
-    return;
-  }
-  /* ✎ edit is always available while a mode is active — saving an edit queues
-     the new instruction to go out with your next message */
-  const label = document.createElement("div");
-  label.innerHTML = modePending
-    ? `<span style="color:var(--accent)">will be sent with your next message</span> `
-    : `instruction already sent — click the mode again to resend `;
-  const edit = document.createElement("button"); edit.textContent = "✎ edit";
-  edit.style.cssText = "padding:1px 8px;font-size:11px";
-  edit.onclick = () => { editing = true; renderModes(); };
-  label.appendChild(edit);
-  box.appendChild(label);
-  /* the instruction text is always visible for the active mode */
-  const text = document.createElement("div"); text.textContent = modePrompt(activeMode);
-  text.style.cssText = "margin-top:4px;font-style:italic" + (modePending ? "" : ";opacity:.7");
-  box.appendChild(text);
-}
-/* prepend the mode instruction once, on the first send after switching */
-function withMode(text) {
-  if (activeMode && modePending) {
-    modePending = false; sentModes[activeMode] = 1; saveModeState(); renderModes();
-    return modePrompt(activeMode) + "\n\n" + text;
-  }
-  return text;
-}
-renderModes();
-
-/* quick action buttons */
-for (const a of QUICK_ACTIONS) {
-  const b = document.createElement("button");
-  b.textContent = a.label;
-  b.onclick = () => (a.key ? api("/key", { key: a.key }) : api("/send", { text: a.text }));
-  $("actions").appendChild(b);
-}
-
-/* mini step list — persists in your browser (localStorage) */
-let steps = JSON.parse(localStorage.getItem("sb-steps") || "[]");
-function saveSteps() { localStorage.setItem("sb-steps", JSON.stringify(steps)); }
-function renderSteps() {
-  const box = $("steps"); box.innerHTML = "";
-  steps.forEach((s, i) => {
-    const row = document.createElement("div"); row.className = "step";
-    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = s.ticked;
-    cb.onchange = () => { s.ticked = cb.checked; saveSteps(); };
-    const t = document.createElement("input"); t.type = "text"; t.value = s.title;
-    t.onchange = () => { s.title = t.value; saveSteps(); };
-    const del = document.createElement("button"); del.className = "del"; del.textContent = "✕";
-    del.onclick = () => { steps.splice(i, 1); saveSteps(); renderSteps(); };
-    row.append(cb, t, del); box.appendChild(row);
-  });
-}
-$("addStep").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.target.value.trim()) {
-    steps.push({ title: e.target.value.trim(), ticked: false });
-    e.target.value = ""; saveSteps(); renderSteps();
-  }
-});
-function sendTicked() {
-  const t = steps.filter((s) => s.ticked).map((s) => "- " + s.title);
-  if (!t.length) return flash("no steps ticked", false);
-  api("/send", { text: withMode("Please do exactly these steps, in order:\n" + t.join("\n")) });
-}
-renderSteps();
-
-/* ── ⇧⌘↵ toggles focus: CLI pane ⇄ sidebar input ───────────────────────── */
-const termFrame = $("term");
-function focusTerminal() {
-  const d = termFrame.contentDocument;
-  const x = d && d.querySelector(".xterm-helper-textarea");
-  (x || termFrame.contentWindow).focus();
-}
-function isToggleKey(e) {
-  return e.key === "Enter" && e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey;
-}
-document.addEventListener("keydown", (e) => {
-  if (!isToggleKey(e)) return;
-  e.preventDefault(); e.stopPropagation();
-  if (document.activeElement === termFrame) $("prompt").focus();
-  else focusTerminal();
-}, true);
-/* terminal side (same-origin via /term/ proxy): same key jumps back out */
-termFrame.addEventListener("load", () => {
-  try {
-    termFrame.contentDocument.addEventListener("keydown", (e) => {
-      if (isToggleKey(e)) { e.preventDefault(); e.stopImmediatePropagation(); $("prompt").focus(); }
-    }, true);
-  } catch (err) { console.log("terminal toggle-key hook unavailable:", err); }
-});
-/* Two focus states: the CLI pane, or everything else → the input bar.
-   Clicking anywhere outside the terminal that isn't a text field puts the
-   cursor back in the input (skipped while you're selecting text to copy). */
-document.addEventListener("click", (e) => {
-  if (e.target.closest('textarea, select, [contenteditable], input:not([type="checkbox"])')) return;
-  if (String(window.getSelection())) return;
-  $("prompt").focus();
-});
-$("prompt").focus();
-</script>
+<script src="/app.js"></script>
 </body>
 </html>
