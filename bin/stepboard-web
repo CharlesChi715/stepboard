@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# stepboard-web — talk to Claude Code (or any CLI agent) in a browser tab.
+#
+# Usage:
+#   stepboard-web [project-dir]     # default: current directory
+#
+# Env overrides:
+#   STEPBOARD_PORT=4870      port to serve on
+#   STEPBOARD_AGENT=claude   command to run (e.g. codex)
+#   STEPBOARD_SESSION=stepboard   tmux session name
+set -euo pipefail
+
+PORT="${STEPBOARD_PORT:-4870}"
+SESSION="${STEPBOARD_SESSION:-stepboard}"
+AGENT_CMD="${STEPBOARD_AGENT:-claude}"
+DIR="$(cd "${1:-$PWD}" && pwd)"
+URL="http://127.0.0.1:${PORT}"
+
+command -v ttyd >/dev/null || { echo "ttyd not found — run: brew install ttyd" >&2; exit 1; }
+command -v tmux >/dev/null || { echo "tmux not found — run: brew install tmux" >&2; exit 1; }
+
+# Already serving? Just open the page.
+if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "Already serving at $URL"
+  open "$URL"
+  exit 0
+fi
+
+echo "Serving '$AGENT_CMD' (cwd: $DIR) at $URL — Ctrl+C here to stop."
+( sleep 1; open "$URL" ) &
+
+# -W writable · -i lo0 localhost only (a web terminal is a full shell — never expose it)
+# tmux new -A: attach if the session already exists, else create it in $DIR
+exec ttyd -W -i lo0 -p "$PORT" \
+  -t titleFixed="StepBoard" -t fontSize=14 \
+  tmux new -A -s "$SESSION" -c "$DIR" "$AGENT_CMD"
