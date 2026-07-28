@@ -12,3 +12,6 @@
 - stepboard-view MVP: custom web view (bin/stepboard-view + web/view.html) — iframes the
   real CLI, adds owned UI (input bar, quick actions, tickable steps) driving Claude via
   POST /send → tmux send-keys. Tested end-to-end against a throwaway tmux session.
+- Help-level bar added to web view: Autopilot / Copilot / Advisor / Mentor segmented
+  control above the input area; clicking sends the mode's behavior contract into Claude
+  via /send; selection persists in localStorage.
