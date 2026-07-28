@@ -40,3 +40,5 @@
   had been sent); saving an edit queues the new instruction with the next message.
 - Active mode's instruction text now always shown (slightly dimmed when already sent).
 - Shift+Tab mode cycling now works anywhere outside the terminal pane (was input-only).
+- Two-state focus model: any click outside the CLI pane (not on a text field, not while
+  selecting text) auto-focuses the input bar; Shift+Tab cycles modes in that whole state.

@@ -291,6 +291,14 @@ termFrame.addEventListener("load", () => {
     }, true);
   } catch (err) { console.log("terminal toggle-key hook unavailable:", err); }
 });
+/* Two focus states: the CLI pane, or everything else → the input bar.
+   Clicking anywhere outside the terminal that isn't a text field puts the
+   cursor back in the input (skipped while you're selecting text to copy). */
+document.addEventListener("click", (e) => {
+  if (e.target.closest('textarea, select, [contenteditable], input:not([type="checkbox"])')) return;
+  if (String(window.getSelection())) return;
+  $("prompt").focus();
+});
 $("prompt").focus();
 </script>
 </body>
