@@ -30,3 +30,5 @@
 - Pane switching remapped: Tab restored to normal behavior; ⌘← focuses the CLI pane,
   ⌘→ focuses the sidebar input (both intercepted in page and terminal, blocking
   browser history navigation).
+- Shift+Tab (input-focused only) cycles help-level modes, mirroring Claude Code's own
+  Shift+Tab mode cycling; respects per-mode sent-memory.

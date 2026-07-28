@@ -146,6 +146,14 @@ function sendPrompt() {
 }
 $("prompt").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendPrompt(); }
+  /* Shift+Tab cycles help levels — only while this input box is focused */
+  if (e.key === "Tab" && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    e.preventDefault();
+    const i = MODES.findIndex((m) => m.name === activeMode);
+    const next = MODES[(i + 1) % MODES.length];
+    editing = false; activeMode = next.name; modePending = !sentModes[next.name];
+    saveModeState(); renderModes(); flash(next.name + " selected");
+  }
 });
 
 /* help-level bar — selecting a mode shows ONLY the instruction that will be
