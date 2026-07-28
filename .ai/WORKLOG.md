@@ -45,3 +45,7 @@
 - Likely cause of "features not working after reload": no cache headers → browser served
   stale page. Server now sends Cache-Control: no-store on everything; page errors now
   flash visibly (window error trap) instead of silently killing later features.
+- Tidy pass (applied, 4 commits): renamed stepboard-web → stepboard-term (+symlink);
+  split web/view.html into view.html/style.css/app.js with whitelisted static routes;
+  added scripts/smoke.sh (14 checks, all green); rewrote README (user manual) and
+  SUMMARY (chart, rules, compressed state).

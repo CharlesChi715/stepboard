@@ -1,35 +1,71 @@
 # StepBoard
 
-Talk to Claude Code in a browser tab. That's the MVP.
+Talk to Claude Code in a webpage you fully own — the **real** CLI on the left
+(nothing re-implemented: spinners, colors, permission prompts are exact by
+construction), your own customizable controls on the right.
 
-No re-implemented chat UI: the page shows the **real** Claude Code CLI (served by
-[ttyd](https://tsl0922.github.io/ttyd/) inside tmux), so input and output are exact by
-construction — spinners, colors, permission prompts, everything.
-
-## Use
+## Quick start
 
 ```sh
-stepboard-term              # serve Claude Code in the current directory
-stepboard-term ~/my/project # ...or in a specific project
+STEPBOARD_NO_OPEN=1 stepboard-term ~/my/project &   # 1. terminal server (ttyd + tmux)
+stepboard-view                                      # 2. the page → opens localhost:4871
 ```
 
-A tab opens at http://127.0.0.1:4870. Type there like you would in the terminal.
-`Ctrl+C` in the launching terminal stops the server (the tmux session — and your
-conversation — survives; rerun to reattach).
+Left pane: the live Claude Code CLI. Right panel: help-level modes, your input
+bar, quick-action buttons, and a tickable step list — everything types into the
+same real session.
 
-- Different agent: `STEPBOARD_AGENT=codex stepboard-term`
-- Different port: `STEPBOARD_PORT=4999 stepboard-term`
-- Attach from a normal terminal too: `tmux attach -t stepboard`
+## Keys
 
-## Requirements
+| Key | Where | Does |
+|---|---|---|
+| `↵` | input bar | send to Claude (queued mode instruction rides along once) |
+| `⇧↵` | input bar | newline |
+| `⇧Tab` | anywhere outside the CLI pane | cycle help level (Autopilot → Copilot → Advisor → Mentor) |
+| `⇧⌘↵` | both panes | toggle focus: CLI pane ⇄ input bar |
 
-`brew install ttyd tmux` (and the `claude` CLI on PATH).
+Focus has two states: the CLI pane, or everything else — clicking anywhere
+outside the terminal puts the cursor back in the input bar.
 
-## Security
+## Help levels
 
-Bound to 127.0.0.1 only. A web terminal is a full shell — never expose the port.
+Selecting a mode queues its instruction (shown above the input bar) to be sent
+with your next message — once per mode; switching back to an already-sent mode
+queues nothing. Re-click the active mode to force a resend, **✎ edit** to
+change the wording (saved per mode, re-queued on save).
+
+## Customize
+
+The UI is three plain files, no build step — edit and reload:
+
+- `web/app.js` — behavior: `MODES` (names + instructions), `QUICK_ACTIONS`
+  (label → text typed into Claude), keys, step list.
+- `web/style.css` — all looks.
+- `web/view.html` — layout/structure.
+
+Config via env: `STEPBOARD_PORT` (terminal, 4870) · `STEPBOARD_VIEW_PORT`
+(page, 4871) · `STEPBOARD_SESSION` (tmux name) · `STEPBOARD_AGENT`
+(e.g. `codex`) · `STEPBOARD_NO_OPEN` / `--no-open` (don't open a browser tab).
+
+## How it works
+
+browser → `stepboard-view` (serves the page; proxies `/term/*` same-origin,
+including a raw WebSocket tunnel; `POST /send` → `tmux send-keys`) →
+`stepboard-term` (ttyd) → tmux → `claude`. The tmux session survives everything:
+close tabs, kill servers, reattach anytime (`tmux attach -t stepboard`).
+
+## Troubleshoot
+
+- Terminal shows "reconnecting" → is `stepboard-term` running? (`scripts/smoke.sh` tells you in 10s.)
+- A change to the web files doesn't show → reload; the server sends no-store, so a plain reload is enough.
+- Everything: run `./scripts/smoke.sh` — 14 checks, isolated from your real session.
+
+## Requirements & security
+
+`brew install ttyd tmux`, plus the `claude` CLI. Both servers bind
+127.0.0.1 **only** — a web terminal is a full shell; never expose these ports.
 
 ## Roadmap
 
-This is Phase 0 of a larger design (live context bar + tickable step board that replaces
-plan mode) — see `docs/DESIGN.md`.
+This is the interactive-view stage of a larger design (always-fresh context
+bar + a tickable step board that replaces plan mode) — see `docs/DESIGN.md`.
