@@ -36,3 +36,5 @@
 - Removed ⌘←/⌘→ pane switching (shortcut TBD later); input still auto-focuses on load.
 - ⇧⌘↵ now toggles focus between the CLI pane and the sidebar input (both directions,
   intercepted on both sides of the iframe).
+- Fix: ✎ edit is now available in every mode state (was unreachable once an instruction
+  had been sent); saving an edit queues the new instruction with the next message.

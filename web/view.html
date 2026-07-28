@@ -189,30 +189,33 @@ function renderModes() {
   }
   const box = $("modedesc"); box.innerHTML = "";
   if (!activeMode) { box.textContent = "No mode set — click one to choose how much Claude takes over."; return; }
-  if (!modePending) {
-    box.textContent = "instruction already sent — click the mode again to resend, ✎ to change it.";
-    return;
-  }
   if (editing) {
     const ta = document.createElement("textarea"); ta.value = modePrompt(activeMode);
     ta.style.minHeight = "90px";
-    const save = document.createElement("button"); save.textContent = "Save"; save.className = "primary";
+    const save = document.createElement("button"); save.textContent = "Save & queue"; save.className = "primary";
     save.onclick = () => { overrides[activeMode] = ta.value.trim(); delete sentModes[activeMode];
                            modePending = true; editing = false; saveModeState(); renderModes(); };
     const cancel = document.createElement("button"); cancel.textContent = "Cancel";
     cancel.onclick = () => { editing = false; renderModes(); };
     const row = document.createElement("div"); row.className = "row"; row.style.marginTop = "6px";
     row.append(save, cancel); box.append(ta, row);
-  } else {
-    const label = document.createElement("div");
-    label.innerHTML = `<span style="color:var(--accent)">will be sent with your next message</span> `;
-    const edit = document.createElement("button"); edit.textContent = "✎ edit";
-    edit.style.cssText = "padding:1px 8px;font-size:11px";
-    edit.onclick = () => { editing = true; renderModes(); };
-    label.appendChild(edit);
+    return;
+  }
+  /* ✎ edit is always available while a mode is active — saving an edit queues
+     the new instruction to go out with your next message */
+  const label = document.createElement("div");
+  label.innerHTML = modePending
+    ? `<span style="color:var(--accent)">will be sent with your next message</span> `
+    : `instruction already sent — click the mode again to resend `;
+  const edit = document.createElement("button"); edit.textContent = "✎ edit";
+  edit.style.cssText = "padding:1px 8px;font-size:11px";
+  edit.onclick = () => { editing = true; renderModes(); };
+  label.appendChild(edit);
+  box.appendChild(label);
+  if (modePending) {
     const text = document.createElement("div"); text.textContent = modePrompt(activeMode);
     text.style.cssText = "margin-top:4px;font-style:italic";
-    box.append(label, text);
+    box.appendChild(text);
   }
 }
 /* prepend the mode instruction once, on the first send after switching */
