@@ -34,3 +34,5 @@
   Shift+Tab mode cycling; respects per-mode sent-memory.
 - Input bar: Enter sends, Shift+Enter inserts a newline (matches the CLI's convention).
 - Removed ⌘←/⌘→ pane switching (shortcut TBD later); input still auto-focuses on load.
+- ⇧⌘↵ now toggles focus between the CLI pane and the sidebar input (both directions,
+  intercepted on both sides of the iframe).

@@ -262,8 +262,30 @@ function sendTicked() {
 }
 renderSteps();
 
-/* pane-switching shortcut removed for now (to be chosen later);
-   the input box just starts focused */
+/* ── ⇧⌘↵ toggles focus: CLI pane ⇄ sidebar input ───────────────────────── */
+const termFrame = $("term");
+function focusTerminal() {
+  const d = termFrame.contentDocument;
+  const x = d && d.querySelector(".xterm-helper-textarea");
+  (x || termFrame.contentWindow).focus();
+}
+function isToggleKey(e) {
+  return e.key === "Enter" && e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey;
+}
+document.addEventListener("keydown", (e) => {
+  if (!isToggleKey(e)) return;
+  e.preventDefault(); e.stopPropagation();
+  if (document.activeElement === termFrame) $("prompt").focus();
+  else focusTerminal();
+}, true);
+/* terminal side (same-origin via /term/ proxy): same key jumps back out */
+termFrame.addEventListener("load", () => {
+  try {
+    termFrame.contentDocument.addEventListener("keydown", (e) => {
+      if (isToggleKey(e)) { e.preventDefault(); e.stopImmediatePropagation(); $("prompt").focus(); }
+    }, true);
+  } catch (err) { console.log("terminal toggle-key hook unavailable:", err); }
+});
 $("prompt").focus();
 </script>
 </body>
