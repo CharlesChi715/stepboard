@@ -33,3 +33,4 @@
 - Shift+Tab (input-focused only) cycles help-level modes, mirroring Claude Code's own
   Shift+Tab mode cycling; respects per-mode sent-memory.
 - Input bar: Enter sends, Shift+Enter inserts a newline (matches the CLI's convention).
+- Removed ⌘←/⌘→ pane switching (shortcut TBD later); input still auto-focuses on load.

@@ -262,32 +262,9 @@ function sendTicked() {
 }
 renderSteps();
 
-/* ── ⌘← focuses the CLI pane, ⌘→ focuses the sidebar input ─────────────
-   (Tab behaves normally everywhere. preventDefault also stops the browser's
-   history back/forward on ⌘-arrows.) */
-const termFrame = $("term");
-function focusTerminal() {
-  const d = termFrame.contentDocument;
-  const x = d && d.querySelector(".xterm-helper-textarea");
-  (x || termFrame.contentWindow).focus();
-}
-function focusInput() { $("prompt").focus(); }
-function paneKey(e) {
-  if (!e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return false;
-  if (e.key === "ArrowLeft")  { e.preventDefault(); focusTerminal(); return true; }
-  if (e.key === "ArrowRight") { e.preventDefault(); focusInput();    return true; }
-  return false;
-}
-document.addEventListener("keydown", paneKey, true);
-/* terminal side (same-origin via /term/ proxy): same keys, kept from xterm */
-termFrame.addEventListener("load", () => {
-  try {
-    termFrame.contentDocument.addEventListener("keydown", (e) => {
-      if (paneKey(e)) e.stopImmediatePropagation();
-    }, true);
-  } catch (err) { console.log("terminal pane-key hook unavailable:", err); }
-});
-focusInput();
+/* pane-switching shortcut removed for now (to be chosen later);
+   the input box just starts focused */
+$("prompt").focus();
 </script>
 </body>
 </html>
