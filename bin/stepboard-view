@@ -28,6 +28,9 @@ WEB = Path(__file__).resolve().parent.parent / "web"
 HTML = WEB / "view.html"
 STATIC = {"/style.css": ("style.css", "text/css"),
           "/app.js": ("app.js", "text/javascript")}
+# The pace panel: Claude (instructed from the page) writes its answers here as
+# numbered paragraphs; the page polls GET /digest and renders them clickable.
+DIGEST = Path(os.environ.get("STEPBOARD_DIGEST", f"/tmp/stepboard-digest-{SESSION}.md"))
 ALLOWED_KEYS = {"Escape", "Enter", "Up", "Down", "Tab"}
 HOP_HEADERS = {"connection", "keep-alive", "transfer-encoding", "upgrade",
                "proxy-connection", "te", "trailers"}
@@ -135,6 +138,12 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(200, body=(WEB / name).read_bytes(), ctype=f"{ctype}; charset=utf-8")
         elif self.path == "/health":
             self.reply(200, {"ok": True, "session": SESSION})
+        elif self.path == "/digest":
+            try:
+                txt, mt = DIGEST.read_text(), DIGEST.stat().st_mtime
+            except OSError:
+                txt, mt = "", 0
+            self.reply(200, {"path": str(DIGEST), "text": txt, "mtime": mt})
         else:
             self.reply(404, {"error": "not found"})
 

@@ -53,3 +53,10 @@
   app.js now re-dispatches trusted mouse events as shiftKey clones (xterm's force-selection),
   so drag/double-click(word)/triple-click(line) select like a text editor. Clicks no longer
   reach the CLI app itself.
+- Pace panel: Claude (asked once from the page) writes each answer as numbered paragraphs
+  to a digest file; GET /digest polled by the page renders per-paragraph cards with
+  🐢 simpler / ⚡ deeper follow-up buttons. No terminal parsing.
+- Terminal text-selection fix for macOS: xterm.js only force-selects via Option-click with
+  macOptionClickForcesSelection=true (now set by stepboard-term, altClickMovesCursor off);
+  app.js clones now carry altKey+shiftKey and preventDefault the real event (the "page
+  drifts while dragging" was native drag leaking through).

@@ -194,21 +194,76 @@ termFrame.addEventListener("load", () => {
        triple-click (line) all select like a normal text editor.
        Trade-off: mouse clicks never reach the CLI app itself. */
     const forceSelect = (e) => {
-      if (!e.isTrusted || e.shiftKey) return;               // clones pass through
+      if (!e.isTrusted) return;                             // clones pass through
       if (!e.target.closest || !e.target.closest(".xterm")) return;
       e.stopImmediatePropagation();
+      e.preventDefault();  // kill native drag/select — xterm's handlers get the clone
+      // Shift forces selection on Linux/Windows; on macOS it's Option-click
+      // (with macOptionClickForcesSelection=true, set by stepboard-term)
       e.target.dispatchEvent(new MouseEvent(e.type, {
         bubbles: true, cancelable: true, composed: true,
         clientX: e.clientX, clientY: e.clientY,
         screenX: e.screenX, screenY: e.screenY,
         button: e.button, buttons: e.buttons, detail: e.detail,
-        shiftKey: true, metaKey: e.metaKey, ctrlKey: e.ctrlKey, altKey: e.altKey,
+        shiftKey: true, altKey: true, metaKey: e.metaKey, ctrlKey: e.ctrlKey,
       }));
     };
     for (const t of ["mousedown", "mouseup", "click", "dblclick"])
       d.addEventListener(t, forceSelect, true);
   } catch (err) { console.log("terminal hooks unavailable:", err); }
 });
+/* ── Pace panel ─────────────────────────────────────────────────────────
+   Claude (once asked via the button) saves each answer as numbered
+   paragraphs to a digest file; we poll it and render each paragraph as a
+   card with 🐢 simpler / ⚡ deeper follow-up buttons. No terminal parsing —
+   the agent itself publishes structured text. */
+let digestPath = "", digestMtime = -1;
+function paceInstruction() {
+  return "From now on in this session, whenever you give me a substantive answer or " +
+    "explanation, ALSO save it to " + digestPath + " (overwrite the whole file each time) " +
+    "as plain markdown of short numbered paragraphs (1., 2., 3. — one idea each, 2-4 " +
+    "sentences). Use your Write tool for that silently right after answering; don't " +
+    "mention doing it. Keep your chat answer itself unchanged.";
+}
+$("paceEnable").onclick = () => api("/send", { text: paceInstruction() });
+function renderPace(text) {
+  const box = $("pace"); box.innerHTML = "";
+  const blocks = !text.trim() ? [] : text.trim()
+    .split(/\n\s*\n+/)
+    .flatMap((b) => b.split(/\n(?=\d+[.)]\s)/))
+    .map((b) => b.trim()).filter(Boolean);
+  if (!blocks.length) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "color:var(--muted);font-size:12px";
+    empty.textContent = "Nothing here yet — click the button below, then ask Claude something.";
+    box.appendChild(empty);
+    return;
+  }
+  for (const b of blocks) {
+    const card = document.createElement("div"); card.className = "pace-card";
+    const t = document.createElement("div"); t.textContent = b;
+    const row = document.createElement("div"); row.className = "row";
+    const ref = b.replace(/\s+/g, " ").slice(0, 110);
+    const slow = document.createElement("button"); slow.textContent = "🐢 simpler";
+    slow.onclick = () => api("/send", { text:
+      `About this part of your last answer: "${ref}…" — I don't fully get it. ` +
+      "Re-explain just this part one level simpler (one step earlier), with a tiny example." });
+    const fast = document.createElement("button"); fast.textContent = "⚡ deeper";
+    fast.onclick = () => api("/send", { text:
+      `This part of your last answer I already understand well: "${ref}…" — ` +
+      "skip ahead on just this part: give me the next-level, more advanced version." });
+    row.append(slow, fast); card.append(t, row); box.appendChild(card);
+  }
+}
+async function pollDigest() {
+  try {
+    const r = await fetch("/digest"); const j = await r.json();
+    digestPath = j.path;
+    if (j.mtime !== digestMtime) { digestMtime = j.mtime; renderPace(j.text || ""); }
+  } catch (err) { /* server briefly away — next poll retries */ }
+}
+setInterval(pollDigest, 2000); pollDigest();
+
 /* Two focus states: the CLI pane, or everything else → the input bar.
    Clicking anywhere outside the terminal that isn't a text field puts the
    cursor back in the input (skipped while you're selecting text to copy). */

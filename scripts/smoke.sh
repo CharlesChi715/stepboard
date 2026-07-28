@@ -20,6 +20,7 @@ curl -s "$VIEW/" | grep -q StepBoard          && ok "page serves"        || bad 
 curl -s -D - -o /dev/null "$VIEW/" | grep -qi "cache-control: no-store" && ok "no-store header" || bad "no-store header"
 check "style.css serves"             curl -sf "$VIEW/style.css"
 check "app.js serves"                curl -sf "$VIEW/app.js"
+curl -s "$VIEW/digest" | grep -q '"path"'     && ok "digest endpoint"     || bad "digest endpoint"
 curl -s "$VIEW/term/" | grep -q ttyd          && ok "terminal proxied"   || bad "terminal proxied (is stepboard-term running?)"
 
 echo "— WebSocket tunnel —"

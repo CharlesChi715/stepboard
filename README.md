@@ -11,9 +11,18 @@ STEPBOARD_NO_OPEN=1 stepboard-term ~/my/project &   # 1. terminal server (ttyd +
 stepboard-view                                      # 2. the page → opens localhost:4871
 ```
 
-Left pane: the live Claude Code CLI. Right panel: help-level modes, your input
-bar, quick-action buttons, and a tickable step list — everything types into the
-same real session.
+Left pane: the live Claude Code CLI (text selects like a normal editor: drag,
+double-click a word, triple-click a line). Right panel: help-level modes, your
+input bar, quick-action buttons, the pace panel, and a tickable step list —
+everything types into the same real session.
+
+## Pace panel
+
+Click "Ask Claude to publish answers here" once, then every substantive answer
+also appears in the panel as numbered paragraphs (Claude writes them to a
+digest file; no terminal parsing). Each paragraph has **🐢 simpler** (re-explain
+one level easier) and **⚡ deeper** (skip ahead, next level) — per-paragraph
+pace control for learning.
 
 ## Keys
 

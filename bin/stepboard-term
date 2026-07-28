@@ -39,6 +39,10 @@ done < <(env)
 # -W writable · -i lo0 localhost only (a web terminal is a full shell — never expose it)
 # -b /term lets stepboard-view proxy the terminal same-origin (needed for Tab switching)
 # tmux new -A: attach if the session already exists, else create it in $DIR
+# macOptionClickForcesSelection: on macOS xterm.js only force-selects (over an
+# app's mouse reporting) via Option-click with this on — the page's selection
+# fix depends on it. altClickMovesCursor off so Option-click never types arrows.
 exec ttyd -W -i lo0 -p "$PORT" -b /term \
   -t titleFixed="StepBoard" -t fontSize=14 \
+  -t macOptionClickForcesSelection=true -t altClickMovesCursor=false \
   tmux new -A -s "$SESSION" -c "$DIR" "$AGENT_CMD"

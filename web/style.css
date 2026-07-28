@@ -42,6 +42,10 @@
   .step .del { border: none; background: none; color: var(--muted); cursor: pointer; }
   input.add { width: 100%; padding: 8px; border: 1px dashed var(--line);
               border-radius: 8px; background: transparent; color: var(--ink); font: inherit; }
+  .pace-card { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+               margin-bottom: 8px; font-size: 13px; white-space: pre-wrap; }
+  .pace-card .row { margin-top: 6px; }
+  .pace-card button { padding: 2px 8px; font-size: 11px; }
   .modes { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
   .modes button { flex: 1; border: none; border-radius: 0; padding: 7px 2px; font-size: 12px; }
   .modes button + button { border-left: 1px solid var(--line); }
