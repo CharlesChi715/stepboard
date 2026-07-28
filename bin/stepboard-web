@@ -14,7 +14,7 @@ PORT="${STEPBOARD_PORT:-4870}"
 SESSION="${STEPBOARD_SESSION:-stepboard}"
 AGENT_CMD="${STEPBOARD_AGENT:-claude}"
 DIR="$(cd "${1:-$PWD}" && pwd)"
-URL="http://127.0.0.1:${PORT}"
+URL="http://127.0.0.1:${PORT}/term"
 
 command -v ttyd >/dev/null || { echo "ttyd not found — run: brew install ttyd" >&2; exit 1; }
 command -v tmux >/dev/null || { echo "tmux not found — run: brew install tmux" >&2; exit 1; }
@@ -27,7 +27,7 @@ if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
 fi
 
 echo "Serving '$AGENT_CMD' (cwd: $DIR) at $URL — Ctrl+C here to stop."
-( sleep 1; open "$URL" ) &
+[ -z "${STEPBOARD_NO_OPEN:-}" ] && ( sleep 1; open "$URL" ) &
 
 # Start clean even if launched from inside a Claude session (hooks, background jobs):
 # leaked CLAUDE_* vars make a nested `claude` attach to the running session
@@ -37,7 +37,8 @@ while IFS='=' read -r name _; do
 done < <(env)
 
 # -W writable · -i lo0 localhost only (a web terminal is a full shell — never expose it)
+# -b /term lets stepboard-view proxy the terminal same-origin (needed for Tab switching)
 # tmux new -A: attach if the session already exists, else create it in $DIR
-exec ttyd -W -i lo0 -p "$PORT" \
+exec ttyd -W -i lo0 -p "$PORT" -b /term \
   -t titleFixed="StepBoard" -t fontSize=14 \
   tmux new -A -s "$SESSION" -c "$DIR" "$AGENT_CMD"

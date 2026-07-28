@@ -65,12 +65,12 @@
 </header>
 
 <main>
-  <!-- the real CLI, re-hosted — never re-rendered -->
-  <iframe src="__TTYD_URL__" title="Claude Code terminal"></iframe>
+  <!-- the real CLI, re-hosted — never re-rendered (proxied same-origin at /term/) -->
+  <iframe id="term" src="/term/" title="Claude Code terminal"></iframe>
 
   <aside>
     <section>
-      <h2>Help level <span style="text-transform:none">(click to switch Claude's mode)</span></h2>
+      <h2>Help level <span style="text-transform:none">(sent with your next message)</span></h2>
       <div class="modes" id="modes"></div>
       <div class="modedesc" id="modedesc"></div>
     </section>
@@ -144,30 +144,44 @@ function flash(msg, ok = true) {
 
 function sendPrompt() {
   const t = $("prompt").value.trim();
-  if (t) api("/send", { text: t }).then((ok) => ok && ($("prompt").value = ""));
+  if (!t && !modePending) return;
+  const text = withMode(t || "Acknowledge the mode above.");
+  api("/send", { text }).then((ok) => ok && ($("prompt").value = ""));
 }
 $("prompt").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendPrompt(); }
 });
 
-/* help-level bar — click sends the mode contract into Claude */
+/* help-level bar — selecting a mode shows its instruction here; it is sent
+   to the CLI together with your NEXT message (never typed in by itself) */
 let activeMode = localStorage.getItem("sb-mode") || "";
+let modePending = localStorage.getItem("sb-mode-pending") === "1";
+function setPending(v) { modePending = v; localStorage.setItem("sb-mode-pending", v ? "1" : "0"); }
 function renderModes() {
   const bar = $("modes"); bar.innerHTML = "";
   for (const m of MODES) {
     const b = document.createElement("button");
     b.textContent = m.name;
     if (m.name === activeMode) b.classList.add("active");
-    b.onclick = async () => {
-      if (await api("/send", { text: m.prompt })) {
-        activeMode = m.name; localStorage.setItem("sb-mode", activeMode);
-        renderModes(); flash(m.name.replace(/^\S+ /, "") + " mode sent ✓");
-      }
+    b.onclick = () => {
+      activeMode = m.name; localStorage.setItem("sb-mode", activeMode);
+      setPending(true); renderModes();
     };
     bar.appendChild(b);
   }
   const cur = MODES.find((m) => m.name === activeMode);
-  $("modedesc").textContent = cur ? cur.desc : "No mode set — click one to tell Claude how much to take over.";
+  $("modedesc").innerHTML = !cur
+    ? "No mode set — click one to choose how much Claude takes over."
+    : `<b>${cur.name}</b> — ${cur.desc}` +
+      (modePending
+        ? `<br><span style="color:var(--accent)">will be sent with your next message:</span> <i>${cur.prompt}</i>`
+        : `<br>instruction already sent — Claude is in this mode.`);
+}
+/* prepend the mode instruction once, on the first send after switching */
+function withMode(text) {
+  const cur = MODES.find((m) => m.name === activeMode);
+  if (cur && modePending) { setPending(false); renderModes(); return cur.prompt + "\n\n" + text; }
+  return text;
 }
 renderModes();
 
@@ -204,9 +218,36 @@ $("addStep").addEventListener("keydown", (e) => {
 function sendTicked() {
   const t = steps.filter((s) => s.ticked).map((s) => "- " + s.title);
   if (!t.length) return flash("no steps ticked", false);
-  api("/send", { text: "Please do exactly these steps, in order:\n" + t.join("\n") });
+  api("/send", { text: withMode("Please do exactly these steps, in order:\n" + t.join("\n")) });
 }
 renderSteps();
+
+/* ── Tab switches panes: terminal ⇄ sidebar input (and nothing else) ──── */
+const termFrame = $("term");
+function focusTerminal() {
+  const d = termFrame.contentDocument;
+  const x = d && d.querySelector(".xterm-helper-textarea");
+  (x || termFrame.contentWindow).focus();
+}
+function focusInput() { $("prompt").focus(); }
+/* sidebar side: plain Tab → jump into the terminal */
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    e.preventDefault(); focusTerminal();
+  }
+}, true);
+/* terminal side (same-origin via /term/ proxy): plain Tab → back to the input.
+   Shift+Tab still reaches Claude Code (permission-mode cycling). */
+termFrame.addEventListener("load", () => {
+  try {
+    termFrame.contentDocument.addEventListener("keydown", (e) => {
+      if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault(); e.stopImmediatePropagation(); focusInput();
+      }
+    }, true);
+  } catch (err) { console.log("terminal Tab hook unavailable:", err); }
+});
+focusInput();
 </script>
 </body>
 </html>

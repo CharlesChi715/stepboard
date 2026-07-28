@@ -9,19 +9,25 @@ Serves web/view.html (edit that file freely — it's the whole UI) and exposes:
 The terminal itself is NOT re-rendered here: the page iframes ttyd (stepboard-web),
 and /send drives the same tmux session from custom UI. Localhost only.
 """
+import http.client
 import json
 import os
+import socket
 import subprocess
 import sys
+import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 PORT = int(os.environ.get("STEPBOARD_VIEW_PORT", "4871"))
 SESSION = os.environ.get("STEPBOARD_SESSION", "stepboard")
-TTYD_URL = os.environ.get("STEPBOARD_TTYD_URL", "http://127.0.0.1:4870")
+TTYD_HOST = os.environ.get("STEPBOARD_TTYD_HOST", "127.0.0.1")
+TTYD_PORT = int(os.environ.get("STEPBOARD_TTYD_PORT", "4870"))
 HTML = Path(__file__).resolve().parent.parent / "web" / "view.html"
 ALLOWED_KEYS = {"Escape", "Enter", "Up", "Down", "Tab"}
+HOP_HEADERS = {"connection", "keep-alive", "transfer-encoding", "upgrade",
+               "proxy-connection", "te", "trailers"}
 
 
 def tmux(*args):
@@ -49,16 +55,78 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    # ── same-origin terminal proxy: /term/* → ttyd (needed to intercept Tab) ──
+    def proxy_ws(self):
+        """Raw two-way tunnel for the terminal's WebSocket."""
+        up = socket.create_connection((TTYD_HOST, TTYD_PORT), timeout=10)
+        req = f"{self.command} {self.path} HTTP/1.1\r\n" + str(self.headers) + "\r\n"
+        up.sendall(req.encode())
+        down = self.connection
+        def pump(src, dst):
+            try:
+                while True:
+                    data = src.recv(65536)
+                    if not data:
+                        break
+                    dst.sendall(data)
+            except OSError:
+                pass
+            finally:
+                for s in (src, dst):
+                    try: s.shutdown(socket.SHUT_RDWR)
+                    except OSError: pass
+        t = threading.Thread(target=pump, args=(up, down), daemon=True)
+        t.start()
+        pump(down, up)
+        t.join(timeout=5)
+        self.close_connection = True
+
+    def proxy_http(self):
+        conn = http.client.HTTPConnection(TTYD_HOST, TTYD_PORT, timeout=10)
+        headers = {k: v for k, v in self.headers.items() if k.lower() not in HOP_HEADERS}
+        body = None
+        n = int(self.headers.get("Content-Length") or 0)
+        if n:
+            body = self.rfile.read(n)
+        conn.request(self.command, self.path, body=body, headers=headers)
+        resp = conn.getresponse()
+        data = resp.read()
+        self.send_response(resp.status)
+        for k, v in resp.getheaders():
+            if k.lower() not in HOP_HEADERS and k.lower() != "content-length":
+                self.send_header(k, v)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(data)
+        self.close_connection = True
+
+    def maybe_proxy(self):
+        if not self.path.startswith("/term"):
+            return False
+        try:
+            if "websocket" in (self.headers.get("Upgrade") or "").lower():
+                self.proxy_ws()
+            else:
+                self.proxy_http()
+        except Exception as e:
+            try: self.reply(502, {"error": f"terminal proxy: {e} — is stepboard-web running?"})
+            except OSError: pass
+        return True
+
     def do_GET(self):
+        if self.maybe_proxy():
+            return
         if self.path in ("/", "/index.html"):
-            page = HTML.read_text().replace("__TTYD_URL__", TTYD_URL)
-            self.reply(200, body=page.encode(), ctype="text/html; charset=utf-8")
+            self.reply(200, body=HTML.read_bytes(), ctype="text/html; charset=utf-8")
         elif self.path == "/health":
             self.reply(200, {"ok": True, "session": SESSION})
         else:
             self.reply(404, {"error": "not found"})
 
     def do_POST(self):
+        if self.maybe_proxy():
+            return
         try:
             n = int(self.headers.get("Content-Length", 0))
             req = json.loads(self.rfile.read(n) or b"{}")
@@ -82,7 +150,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     url = f"http://127.0.0.1:{PORT}"
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"stepboard-view: {url}  (session: {SESSION}, terminal: {TTYD_URL})")
+    print(f"stepboard-view: {url}  (session: {SESSION}, terminal proxied from {TTYD_HOST}:{TTYD_PORT})")
     if "--no-open" not in sys.argv:
         webbrowser.open(url)
     try:

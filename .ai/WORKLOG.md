@@ -15,3 +15,8 @@
 - Help-level bar added to web view: Autopilot / Copilot / Advisor / Mentor segmented
   control above the input area; clicking sends the mode's behavior contract into Claude
   via /send; selection persists in localStorage.
+- Tab pane-switching + deferred mode sending: ttyd now serves under /term and
+  stepboard-view proxies it same-origin (HTTP + raw WebSocket tunnel), so the page can
+  intercept plain Tab inside the terminal — Tab toggles terminal ⇄ sidebar input, input
+  auto-focused on switch. Mode click no longer types into the CLI: the instruction shows
+  above the input bar and is prepended once to the next message sent.
