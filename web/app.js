@@ -196,24 +196,40 @@ function hookTerminal() {
        mouse event as a shiftKey clone: click-drag, double-click (word) and
        triple-click (line) all select like a normal text editor.
        Trade-off: mouse clicks never reach the CLI app itself. */
+    /* Force-selection clones: shift (Linux/Win) + alt (macOS, with
+       macOptionClickForcesSelection=true set by stepboard-term). */
+    const mk = (e) => new MouseEvent(e.type, {
+      bubbles: true, cancelable: true, composed: true,
+      clientX: e.clientX, clientY: e.clientY,
+      screenX: e.screenX, screenY: e.screenY,
+      button: e.button, buttons: e.buttons, detail: e.detail,
+      shiftKey: true, altKey: true, metaKey: e.metaKey, ctrlKey: e.ctrlKey,
+    });
+    let selecting = false;
     const forceSelect = (e) => {
       if (!e.isTrusted) return;                             // clones pass through
+      /* Drag moves/release: Claude Code uses all-motion mouse tracking, so
+         real mousemoves during a drag are reported to the app, which PANS its
+         view (the "page drifts" bug). Re-target them at the document only —
+         xterm's selection tracker listens there; the app's motion reporting
+         (element-level) never sees them. */
+      if (e.type === "mousemove" || e.type === "mouseup") {
+        if (!selecting) return;
+        if (e.type === "mouseup") { selecting = false; e.preventDefault(); }
+        e.stopImmediatePropagation();
+        d.dispatchEvent(mk(e));
+        return;
+      }
       if (!e.target.closest || !e.target.closest(".xterm")) return;
+      if (e.type === "mousedown" && e.button === 0) selecting = true;
       e.stopImmediatePropagation();
       e.preventDefault();  // kill native drag/select — xterm's handlers get the clone
-      // Shift forces selection on Linux/Windows; on macOS it's Option-click
-      // (with macOptionClickForcesSelection=true, set by stepboard-term)
-      e.target.dispatchEvent(new MouseEvent(e.type, {
-        bubbles: true, cancelable: true, composed: true,
-        clientX: e.clientX, clientY: e.clientY,
-        screenX: e.screenX, screenY: e.screenY,
-        button: e.button, buttons: e.buttons, detail: e.detail,
-        shiftKey: true, altKey: true, metaKey: e.metaKey, ctrlKey: e.ctrlKey,
-      }));
+      e.target.dispatchEvent(mk(e));
     };
-    for (const t of ["mousedown", "mouseup", "click", "dblclick"])
+    for (const t of ["mousedown", "mousemove", "mouseup", "click", "dblclick"])
       d.addEventListener(t, forceSelect, true);
-  } catch (err) { console.log("terminal hooks unavailable:", err); }
+    flash("CLI hooks active ✓");
+  } catch (err) { flash("CLI hooks failed: " + err.message, false); }
 }
 /* the iframe often finishes loading BEFORE this script runs (fast localhost),
    so hook immediately as well as on every (re)load */

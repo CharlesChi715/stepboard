@@ -67,3 +67,7 @@
   interception, ⇧⌘↵) never attached. hookTerminal() now runs immediately AND on load,
   guarded against double-attach. Verified server side separately: ttyd delivers
   macOptionClickForcesSelection:true in SET_PREFERENCES over the WS.
+- Deeper selection fix: mousemove was never intercepted, so drag motions were reported to
+  Claude Code (all-motion tracking) which panned its view — the "page drifts" symptom.
+  Drag moves/release now re-targeted at the iframe document only (selection tracker hears
+  them, app reporting doesn't). Hook attachment now flashes "CLI hooks active ✓" on load.
