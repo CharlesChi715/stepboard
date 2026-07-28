@@ -49,3 +49,7 @@
   split web/view.html into view.html/style.css/app.js with whitelisted static routes;
   added scripts/smoke.sh (14 checks, all green); rewrote README (user manual) and
   SUMMARY (chart, rules, compressed state).
+- Normal text selection in the CLI pane: Claude Code's mouse reporting was eating clicks;
+  app.js now re-dispatches trusted mouse events as shiftKey clones (xterm's force-selection),
+  so drag/double-click(word)/triple-click(line) select like a text editor. Clicks no longer
+  reach the CLI app itself.

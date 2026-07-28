@@ -183,10 +183,31 @@ document.addEventListener("keydown", (e) => {
 /* terminal side (same-origin via /term/ proxy): same key jumps back out */
 termFrame.addEventListener("load", () => {
   try {
-    termFrame.contentDocument.addEventListener("keydown", (e) => {
+    const d = termFrame.contentDocument;
+    d.addEventListener("keydown", (e) => {
       if (isToggleKey(e)) { e.preventDefault(); e.stopImmediatePropagation(); $("prompt").focus(); }
     }, true);
-  } catch (err) { console.log("terminal toggle-key hook unavailable:", err); }
+    /* Normal text selection in the terminal. Claude Code turns on mouse
+       reporting, so xterm.js sends clicks to the app instead of selecting.
+       xterm treats Shift as "force selection" — re-dispatch every trusted
+       mouse event as a shiftKey clone: click-drag, double-click (word) and
+       triple-click (line) all select like a normal text editor.
+       Trade-off: mouse clicks never reach the CLI app itself. */
+    const forceSelect = (e) => {
+      if (!e.isTrusted || e.shiftKey) return;               // clones pass through
+      if (!e.target.closest || !e.target.closest(".xterm")) return;
+      e.stopImmediatePropagation();
+      e.target.dispatchEvent(new MouseEvent(e.type, {
+        bubbles: true, cancelable: true, composed: true,
+        clientX: e.clientX, clientY: e.clientY,
+        screenX: e.screenX, screenY: e.screenY,
+        button: e.button, buttons: e.buttons, detail: e.detail,
+        shiftKey: true, metaKey: e.metaKey, ctrlKey: e.ctrlKey, altKey: e.altKey,
+      }));
+    };
+    for (const t of ["mousedown", "mouseup", "click", "dblclick"])
+      d.addEventListener(t, forceSelect, true);
+  } catch (err) { console.log("terminal hooks unavailable:", err); }
 });
 /* Two focus states: the CLI pane, or everything else → the input bar.
    Clicking anywhere outside the terminal that isn't a text field puts the
