@@ -60,3 +60,5 @@
   macOptionClickForcesSelection=true (now set by stepboard-term, altClickMovesCursor off);
   app.js clones now carry altKey+shiftKey and preventDefault the real event (the "page
   drifts while dragging" was native drag leaking through).
+- Pace instruction relaxed: numbered paragraphs stay, the 2-4-sentence cap dropped
+  (one idea per paragraph, natural length).

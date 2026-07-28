@@ -221,9 +221,9 @@ let digestPath = "", digestMtime = -1;
 function paceInstruction() {
   return "From now on in this session, whenever you give me a substantive answer or " +
     "explanation, ALSO save it to " + digestPath + " (overwrite the whole file each time) " +
-    "as plain markdown of short numbered paragraphs (1., 2., 3. — one idea each, 2-4 " +
-    "sentences). Use your Write tool for that silently right after answering; don't " +
-    "mention doing it. Keep your chat answer itself unchanged.";
+    "as plain markdown of numbered paragraphs (1., 2., 3. — one idea per paragraph, " +
+    "whatever length each idea needs). Use your Write tool for that silently right " +
+    "after answering; don't mention doing it. Keep your chat answer itself unchanged.";
 }
 $("paceEnable").onclick = () => api("/send", { text: paceInstruction() });
 function renderPace(text) {
