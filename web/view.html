@@ -76,7 +76,7 @@
     </section>
 
     <section>
-      <h2>Your input bar <span style="text-transform:none">(native macOS editing · <kbd>⌘↵</kbd> send)</span></h2>
+      <h2>Your input bar <span style="text-transform:none">(<kbd>↵</kbd> send · <kbd>⇧↵</kbd> newline)</span></h2>
       <textarea id="prompt" placeholder="Type to Claude from here — ⌘/⌥/⇧ + arrows all work natively…"></textarea>
       <div class="row" style="margin-top:8px">
         <button class="primary" onclick="sendPrompt()">Send to Claude</button>
@@ -145,7 +145,8 @@ function sendPrompt() {
   api("/send", { text }).then((ok) => ok && ($("prompt").value = ""));
 }
 $("prompt").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendPrompt(); }
+  /* Enter sends; Shift+Enter makes a newline (default behavior) */
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendPrompt(); }
   /* Shift+Tab cycles help levels — only while this input box is focused */
   if (e.key === "Tab" && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
     e.preventDefault();
