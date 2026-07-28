@@ -9,3 +9,6 @@
 - Fix: launcher now strips leaked CLAUDE_*/AI_AGENT env vars so a nested launch
   (from hooks/background jobs) starts a fresh claude instead of attaching to the
   running session. Found during live verification.
+- stepboard-view MVP: custom web view (bin/stepboard-view + web/view.html) — iframes the
+  real CLI, adds owned UI (input bar, quick actions, tickable steps) driving Claude via
+  POST /send → tmux send-keys. Tested end-to-end against a throwaway tmux session.

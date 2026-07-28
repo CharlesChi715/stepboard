@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>StepBoard</title>
+<style>
+  /* ── This whole file is yours. Edit anything. ─────────────────────────── */
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --ink: #1c2534; --muted: #5c6878;
+    --line: #dce1e9; --accent: #2b44c4; --ok: #1e7a40;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #10151d; --panel: #161e2a; --ink: #e7ecf4; --muted: #8fa0b4;
+            --line: #2a3546; --accent: #8ca2ff; --ok: #4fc578; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; height: 100vh; display: grid; grid-template-rows: 44px 1fr;
+         font: 14px/1.5 -apple-system, system-ui, sans-serif;
+         background: var(--bg); color: var(--ink); }
+
+  /* top bar — the "fixed bar" area, fully yours to customize */
+  header { display: flex; align-items: center; gap: 12px; padding: 0 14px;
+           background: var(--panel); border-bottom: 2px solid var(--accent); }
+  header .title { font-weight: 650; }
+  header .hint { color: var(--muted); font-size: 12px; }
+  #status { margin-left: auto; font-size: 12px; color: var(--ok); }
+
+  main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+  iframe { width: 100%; height: 100%; border: 0; background: #0d1117; }
+
+  aside { border-left: 1px solid var(--line); background: var(--panel);
+          padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  h2 { font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+       color: var(--muted); margin: 0 0 6px; }
+  textarea { width: 100%; min-height: 74px; resize: vertical; padding: 8px;
+             border: 1px solid var(--line); border-radius: 8px;
+             background: var(--bg); color: var(--ink); font: inherit; }
+  button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px;
+           background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .steps { display: flex; flex-direction: column; gap: 6px; }
+  .step { display: flex; gap: 8px; align-items: center; }
+  .step input[type=text] { flex: 1; border: none; background: transparent;
+                           color: var(--ink); font: inherit; outline: none; }
+  .step input[type=text]:focus { border-bottom: 1px solid var(--accent); }
+  .step .del { border: none; background: none; color: var(--muted); cursor: pointer; }
+  input.add { width: 100%; padding: 8px; border: 1px dashed var(--line);
+              border-radius: 8px; background: transparent; color: var(--ink); font: inherit; }
+  footer { margin-top: auto; font-size: 11px; color: var(--muted); }
+  kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="title">📋 StepBoard</span>
+  <span class="hint">left: the real Claude Code · right: your custom controls</span>
+  <span id="status"></span>
+</header>
+
+<main>
+  <!-- the real CLI, re-hosted — never re-rendered -->
+  <iframe src="__TTYD_URL__" title="Claude Code terminal"></iframe>
+
+  <aside>
+    <section>
+      <h2>Your input bar <span style="text-transform:none">(native macOS editing · <kbd>⌘↵</kbd> send)</span></h2>
+      <textarea id="prompt" placeholder="Type to Claude from here — ⌘/⌥/⇧ + arrows all work natively…"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" onclick="sendPrompt()">Send to Claude</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Quick actions <span style="text-transform:none">(edit QUICK_ACTIONS below)</span></h2>
+      <div class="row" id="actions"></div>
+    </section>
+
+    <section>
+      <h2>Steps <span style="text-transform:none">(tick, edit, then send)</span></h2>
+      <div class="steps" id="steps"></div>
+      <input class="add" id="addStep" placeholder="+ add a step, press Enter">
+      <div class="row" style="margin-top:8px">
+        <button onclick="sendTicked()">Send ticked steps to Claude</button>
+      </div>
+    </section>
+
+    <footer>This page is a plain HTML file you own: <code>web/view.html</code>.
+      Change the layout, add buttons, restyle everything — reload to see it.</footer>
+  </aside>
+</main>
+
+<script>
+/* ── Customize me: label → what gets typed into Claude ─────────────────── */
+const QUICK_ACTIONS = [
+  { label: "▶ go",           text: "go" },
+  { label: "↻ regenerate",   text: "Regenerate your last answer — improve it." },
+  { label: "✋ interrupt",    key: "Escape" },
+  { label: "🧾 summarize",   text: "Summarize what you've done so far in 5 bullets." },
+];
+
+const $ = (id) => document.getElementById(id);
+
+async function api(path, body) {
+  const r = await fetch(path, { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json();
+  flash(r.ok ? "sent ✓" : "error: " + (j.error || r.status), r.ok);
+  return r.ok;
+}
+function flash(msg, ok = true) {
+  const s = $("status");
+  s.textContent = msg; s.style.color = ok ? "var(--ok)" : "#c03a2e";
+  setTimeout(() => (s.textContent = ""), 2000);
+}
+
+function sendPrompt() {
+  const t = $("prompt").value.trim();
+  if (t) api("/send", { text: t }).then((ok) => ok && ($("prompt").value = ""));
+}
+$("prompt").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendPrompt(); }
+});
+
+/* quick action buttons */
+for (const a of QUICK_ACTIONS) {
+  const b = document.createElement("button");
+  b.textContent = a.label;
+  b.onclick = () => (a.key ? api("/key", { key: a.key }) : api("/send", { text: a.text }));
+  $("actions").appendChild(b);
+}
+
+/* mini step list — persists in your browser (localStorage) */
+let steps = JSON.parse(localStorage.getItem("sb-steps") || "[]");
+function saveSteps() { localStorage.setItem("sb-steps", JSON.stringify(steps)); }
+function renderSteps() {
+  const box = $("steps"); box.innerHTML = "";
+  steps.forEach((s, i) => {
+    const row = document.createElement("div"); row.className = "step";
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = s.ticked;
+    cb.onchange = () => { s.ticked = cb.checked; saveSteps(); };
+    const t = document.createElement("input"); t.type = "text"; t.value = s.title;
+    t.onchange = () => { s.title = t.value; saveSteps(); };
+    const del = document.createElement("button"); del.className = "del"; del.textContent = "✕";
+    del.onclick = () => { steps.splice(i, 1); saveSteps(); renderSteps(); };
+    row.append(cb, t, del); box.appendChild(row);
+  });
+}
+$("addStep").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.value.trim()) {
+    steps.push({ title: e.target.value.trim(), ticked: false });
+    e.target.value = ""; saveSteps(); renderSteps();
+  }
+});
+function sendTicked() {
+  const t = steps.filter((s) => s.ticked).map((s) => "- " + s.title);
+  if (!t.length) return flash("no steps ticked", false);
+  api("/send", { text: "Please do exactly these steps, in order:\n" + t.join("\n") });
+}
+renderSteps();
+</script>
+</body>
+</html>
