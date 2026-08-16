@@ -13,6 +13,8 @@
   .pwrap{display:flex;flex-direction:column;gap:2px}
   .snippet{font-size:11px;color:#888;max-width:180px}
   #prompts button.active{background:#2b44c4;border-color:#2b44c4;color:#fff}
+  fieldset.danger{border-color:#c0392b} fieldset.danger legend{color:#c0392b}
+  fieldset.ok{border-color:#1e7a40} fieldset.ok legend{color:#1e7a40}
   #hist{display:flex;flex-direction:column;gap:4px;font-size:12px}
   #hist button{text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   body, button, label, input, textarea { touch-action: manipulation }
@@ -36,7 +38,7 @@
     <legend>format</legend>
     <label><input type="checkbox" id="chart" checked> ASCII chart/table ok</label>
   </fieldset>
-  <fieldset>
+  <fieldset id="edits">
     <legend>edits</legend>
     <label>≤ <input type="number" id="lines" min="0"> lines per step (0 = no edits)</label>
   </fieldset>
@@ -148,6 +150,12 @@
   }
   function toggleHist() { $("hist").hidden = !$("hist").hidden; renderHist() }
   $("msg").addEventListener("blur", () => saveHist($("msg").value, "draft"))
+  // edits frame shows its mode: red = 0/no-edits, green = capped, gray = off
+  function syncEditsColor() {
+    const v = $("lines").value
+    $("edits").className = v === "" ? "" : (+v <= 0 ? "danger" : "ok")
+  }
+  $("lines").addEventListener("input", syncEditsColor); syncEditsColor()
   // picking a length unit pops that unit's default into the number box
   const UNIT_DEFAULTS = {sentences: 2, words: 100}
   document.querySelectorAll("[name=unit]").forEach(r =>
