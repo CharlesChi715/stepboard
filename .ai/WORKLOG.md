@@ -26,3 +26,8 @@
 - `claude-s` now scans 7681+ for a free slot; if session(s) exist, asks "create session N? [y/n]".
 - `serve.py`: reads SB_SESSION/SB_TTYD_PORT env, new GET /config; `index.html`: iframe port set via /config fetch.
 - Repo changes on branch `worktree-multi-session` (pushed); tested 2 parallel panels → /send routed to correct tmux session.
+
+## 2026-08-16 — IDEAS.md refreshed to match repo state
+- §2 ASCII map redrawn: FastAPI serve.py, GET /config handshake, SB_SESSION/SB_TTYD_PORT env pair, multi-session note.
+- §3 Must-do: added shipped items (message history, multi-session, prompt template buttons + edits color coding).
+- §1 raw batch marked "distilled into §3, shipped" (kept, never deleted).

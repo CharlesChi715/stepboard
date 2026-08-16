@@ -6,6 +6,8 @@
 
 ## 1. Raw ideas  (brain-dump — write freely here)
 
+> ↓ this batch is distilled into §3 and shipped (panel v2) — kept for history
+
 - Right pane is for customize prompts. it should contain:
 - 1. input bar for sending the text to claude
 - 2. sections (the content of them appends after prompt)
@@ -17,18 +19,22 @@
 ## 2. ASCII Workflow map
 
 ```
-       TYPING DOOR (input flow)          VIEW DOOR (output flow)
-you ─▶ [buttons]                         [iframe]  ◀── what you see
-        │ POST /send {"text": …}             ▲
-        ▼   HTTP request + JSON              │ WebSocket: screen bytes
-    [serve.py]                           [ttyd :7681]
-     = ThreadingHTTPServer                   ▲
-        │ subprocess call:                   │ mirrors the live screen
-        ▼   tmux send-keys -t sb …           │
-    [tmux "sb"] ─────────────────────────────┘
+       TYPING DOOR (input flow)              VIEW DOOR (output flow)
+you ─▶ [input bar + constraint composer]     [iframe]  ◀── what you see
+        │ compose(): message + clauses           ▲ src ◀── GET /config
+        │ POST /send {"text": …}                 │        {ttyd_port, session}
+        ▼   HTTP request + JSON                  │ WebSocket: screen bytes
+    [serve.py]                               [ttyd :SB_TTYD_PORT (7681)]
+     = FastAPI app  (env picks the target)       ▲
+        │ subprocess call:                       │ mirrors the live screen
+        ▼   tmux send-keys -t SB_SESSION …       │
+    [tmux SB_SESSION ("sb")] ────────────────────┘
         │ injects keystrokes       one real session — both doors meet here
         ▼
     [claude] ── prints output onto the tmux screen ──▶ up the view door
+
+    multi-session: launch N panels, each with its own SB_SESSION + SB_TTYD_PORT
+    env pair — every panel asks /config which ttyd/tmux it is paired with.
 ```
 
 ## 3. Must do  (requirements, as they become clear)
@@ -44,6 +50,9 @@ you ─▶ [buttons]                         [iframe]  ◀── what you see
   Reply in at most 5 sentences.
   Use an ASCII chart or table where it helps.
   When editing files, change at most 20 lines at a time, then pause so I can review."
+- [x] Message history — last 5 input-bar texts, ↑/↓ recall, kept in localStorage
+- [x] Multi-session — /config endpoint + SB_SESSION / SB_TTYD_PORT envs (serve.py is now FastAPI)
+- [x] Prompt template buttons (toggle to arm, appended at send) + edits fieldset color-coded by lines limit
 
 ## 4. Open questions  (things you haven't decided yet)
 
