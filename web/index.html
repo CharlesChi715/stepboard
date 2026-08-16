@@ -14,7 +14,13 @@
   body, button, label, input, textarea { touch-action: manipulation }
 </style>
 
-<iframe src="http://127.0.0.1:7681"></iframe>
+<iframe id="term"></iframe>
+<script>
+  // ask serve.py which ttyd this panel is paired with (claude-s passes it via env)
+  fetch('/config').then(r => r.json())
+    .then(c => { term.src = `http://127.0.0.1:${c.ttyd_port}` })
+    .catch(() => { term.src = 'http://127.0.0.1:7681' })
+</script>
 
 <div id="panel">
   <!-- the MESSAGE -->
@@ -71,14 +77,14 @@
   $("msg").addEventListener("keydown", e => {
     const m = $("msg")
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComposed() }
-    // ↑/↓ cycle history like a terminal — but only from the first/last line,
-    // so arrows still move between lines of a multiline draft
-    else if (e.key === "ArrowUp" && !m.value.slice(0, m.selectionStart).includes("\n")
+    // ↑/↓ recall history only once the caret has HIT the boundary (start/end
+    // of the text) — or while already browsing; otherwise arrows move natively
+    else if (e.key === "ArrowUp" && (m.selectionStart === 0 || histIdx !== -1)
              && histIdx + 1 < hist.length) {
       e.preventDefault()
       if (histIdx === -1) liveDraft = m.value       // stash what you were typing
       m.value = hist[++histIdx].text
-    } else if (e.key === "ArrowDown" && !m.value.slice(m.selectionEnd).includes("\n")
+    } else if (e.key === "ArrowDown" && (m.selectionEnd === m.value.length || histIdx !== -1)
                && histIdx >= 0) {
       e.preventDefault()
       m.value = --histIdx === -1 ? liveDraft : hist[histIdx].text
