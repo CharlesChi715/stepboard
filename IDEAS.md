@@ -6,11 +6,13 @@
 
 ## 1. Raw ideas  (brain-dump — write freely here)
 
-- I'm thinking of the Claude Code learning step, which that Claude Code CLI appears in the webpage, I think through TTYD, right? And well, that TTYD part is like a very developed product,
- I can just keep learning it and take it as granted and next part is I want to build like my own pane, like my own panel where I can customize my input and customize the prompt like there's some buttons in the panel where I can click them to automatically
- add some prompts or make some prompts to fix some prompts to fix some tests at the end of the prompt which I think is like very feasible I can just make that direct button like add a function of that like on click or something like that
- - and next part is I can click that and check the function of append the text which is the part I know how to do and the next is whenever I type some input in the customized input area and append that text and next steps, oh, the key, the core steps
- I have no idea how to do is how to send that text into the TTYDD CLI input area
+- Right pane is for customize prompts. it should contain:
+- 1. input bar for sending the text to claude
+- 2. sections (the content of them appends after prompt)
+    S1: Reply in at most {n} sentences.
+    S2: Reply in at most {n} words.
+    S3: Use an ASCII chart or table where it helps.
+    S4: When editing files, change at most {n} lines at a time, then pause so I can review.
 
 ## 2. ASCII Workflow map
 
@@ -31,7 +33,17 @@ you ─▶ [buttons]                         [iframe]  ◀── what you see
 
 ## 3. Must do  (requirements, as they become clear)
 
-- [ ]
+- [x] Panel v2 — prompt composer (agreed + built 2026-08-16):
+  - input bar sends the MESSAGE; constraint sections append CLAUSES after it
+  - one length unit at a time (number + sentences/words radio)   ← decision (a)
+  - blank number / unticked box = that section appends nothing   ← empty rule
+  - clauses phrased "at most N", one per line
+- Example composed prompt:
+  "explain serve.py
+
+  Reply in at most 5 sentences.
+  Use an ASCII chart or table where it helps.
+  When editing files, change at most 20 lines at a time, then pause so I can review."
 
 ## 4. Open questions  (things you haven't decided yet)
 

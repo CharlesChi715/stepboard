@@ -1,9 +1,66 @@
 <!doctype html>
 <title>My Claude Panel</title>
-<style>body{display:flex;height:100vh;margin:0}iframe{flex:1;border:0}#panel{width:180px;display:flex;flex-direction:column;gap:8px;padding:8px}</style>
+<style>
+  body{display:flex;height:100vh;margin:0;font:14px system-ui}
+  iframe{flex:1;border:0}
+  #panel{width:230px;display:flex;flex-direction:column;gap:10px;padding:10px}
+  fieldset{border:1px solid #ccc;border-radius:8px;display:flex;flex-direction:column;gap:6px}
+  textarea{resize:vertical;min-height:70px;font:inherit}
+  input[type=number]{width:56px}
+  body, button, label, input, textarea { touch-action: manipulation }
+</style>
+
 <iframe src="http://127.0.0.1:7681"></iframe>
+
 <div id="panel">
+  <!-- the MESSAGE -->
+  <textarea id="msg" placeholder="Type to Claude… (Enter sends, Shift+Enter = newline)"></textarea>
+
+  <!-- CONSTRAINTS — each appends one clause; blank / unticked appends nothing -->
+  <fieldset>
+    <legend>length</legend>
+    <label><input type="radio" name="unit" value="auto" checked> auto (Claude picks)</label>
+    <label>at most <input type="number" id="n" min="1"></label>
+    <label><input type="radio" name="unit" value="sentences"> sentences</label>
+    <label><input type="radio" name="unit" value="words"> words</label>
+  </fieldset>
+  <fieldset>
+    <legend>format</legend>
+    <label><input type="checkbox" id="chart" checked> ASCII chart/table ok</label>
+  </fieldset>
+  <fieldset>
+    <legend>edits</legend>
+    <label>≤ <input type="number" id="lines" min="0"> lines per step (0 = no edits)</label>
+  </fieldset>
+
+  <!-- canned messages — these skip the composer on purpose -->
   <button onclick="send('Summarize what you have done so far in 5 bullets.')">summarize</button>
-  <button onclick="send('go')">go</button>
 </div>
-<script>const send = t => fetch("/send", {method:"POST", body:JSON.stringify({text:t})})</script>
+
+<script>
+  const $ = id => document.getElementById(id)
+  const send = text => fetch("/send", {method: "POST",
+    headers: {"Content-Type": "application/json"}, body: JSON.stringify({text})})
+
+  // message + active constraint clauses → the composed prompt
+  function compose(msg) {
+    const clauses = []
+    const unit = document.querySelector('[name=unit]:checked').value
+    if (unit !== "auto" && $("n").value) clauses.push(`Reply in at most ${$("n").value} ${unit}.`)
+    if ($("chart").checked) clauses.push("Use an ASCII chart or table where it helps.")
+    const lines = $("lines").value            // "" = no clause; 0 or less = read-only
+    if (lines !== "") clauses.push(+lines <= 0
+      ? "Do not edit any files — answer and explain only."
+      : `When editing files, change at most ${lines} lines at a time, then pause so I can review.`)
+    return clauses.length ? msg + "\n\n" + clauses.join("\n") : msg
+  }
+  function sendComposed() {
+    const msg = $("msg").value.trim()
+    if (msg) send(compose(msg)).then(r => { if (r.ok) $("msg").value = "" })
+  }
+  $("msg").addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComposed() } })
+  // ⌘K → jump to the input bar (page-side only; the iframe never forwards keys)
+  document.addEventListener("keydown", e => {
+    if (e.metaKey && e.key === "k") { e.preventDefault(); $("msg").focus() } })
+</script>

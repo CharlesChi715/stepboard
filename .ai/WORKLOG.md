@@ -11,3 +11,8 @@
   Verified against a throwaway tmux session; cleaned up after.
 - Wrote README.md (quick start, two-doors pipeline chart, security) and
   recreated SUMMARY.md per global rules. Repo still uncommitted by Charles.
+
+## 2026-08-16
+- Panel v2 at Charles's request: prompt composer in web/index.html — message
+  textarea + constraint sections (length radio+number, ASCII-chart toggle,
+  max-lines-per-edit) appended as clauses. compose() logic unit-tested via node.
