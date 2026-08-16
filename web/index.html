@@ -9,6 +9,10 @@
   input[type=number]{width:56px}
   #sendBtn{padding:12px;font-size:16px;font-weight:600}
   #sumBtn{margin-top:auto}
+  #prompts{flex-direction:row;flex-wrap:wrap;gap:8px}
+  .pwrap{display:flex;flex-direction:column;gap:2px}
+  .snippet{font-size:11px;color:#888;max-width:180px}
+  #prompts button.active{background:#2b44c4;border-color:#2b44c4;color:#fff}
   #hist{display:flex;flex-direction:column;gap:4px;font-size:12px}
   #hist button{text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   body, button, label, input, textarea { touch-action: manipulation }
@@ -38,6 +42,8 @@
   </fieldset>
 
   <!-- canned messages — these skip the composer on purpose -->
+  <fieldset id="prompts"><legend>prompts</legend></fieldset>
+
   <button id="sendBtn" onclick="sendComposed()">Send</button>
   <button onclick="toggleHist()">history</button>
   <div id="hist" hidden></div>
@@ -51,6 +57,8 @@
 
   // message + active constraint clauses → the composed prompt
   function compose(msg) {
+    const base = [msg, ...PROMPTS.filter(pr => pr.armed).map(pr => pr.text)]
+      .filter(Boolean).join("\n\n")
     const clauses = []
     const unit = document.querySelector('[name=unit]:checked').value
     if (unit !== "auto" && $("n").value) clauses.push(`Reply in at most ${$("n").value} ${unit}.`)
@@ -59,26 +67,26 @@
     if (lines !== "") clauses.push(+lines <= 0
       ? "Do not edit any files — answer and explain only."
       : `When editing files, change at most ${lines} lines at a time, then pause so I can review.`)
-    return clauses.length ? msg + "\n\n" + clauses.join("\n") : msg
+    return clauses.length ? base + "\n\n" + clauses.join("\n") : base
   }
   // no argument → sends the input bar (and clears it on success);
   // with a canned string → sends that instead, leaving your draft alone
   function sendComposed(text) {
     const msg = (text ?? $("msg").value).trim()
-    if (msg) send(compose(msg)).then(r => {
-      if (r.ok && text == null) { saveHist(msg, "sent"); $("msg").value = "" } })
+    if (msg || PROMPTS.some(pr => pr.armed)) send(compose(msg)).then(r => {
+      if (r.ok && text == null && msg) { saveHist(msg, "sent"); $("msg").value = "" } })
   }
   $("msg").addEventListener("keydown", e => {
     const m = $("msg")
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComposed() }
-    // ↑/↓ cycle history like a terminal — but only from the first/last line,
-    // so arrows still move between lines of a multiline draft
-    else if (e.key === "ArrowUp" && !m.value.slice(0, m.selectionStart).includes("\n")
+    // ↑/↓ recall history only once the caret has HIT the boundary (start/end
+    // of the text) — or while already browsing; otherwise arrows move natively
+    else if (e.key === "ArrowUp" && (m.selectionStart === 0 || histIdx !== -1)
              && histIdx + 1 < hist.length) {
       e.preventDefault()
       if (histIdx === -1) liveDraft = m.value       // stash what you were typing
       m.value = hist[++histIdx].text
-    } else if (e.key === "ArrowDown" && !m.value.slice(m.selectionEnd).includes("\n")
+    } else if (e.key === "ArrowDown" && (m.selectionEnd === m.value.length || histIdx !== -1)
                && histIdx >= 0) {
       e.preventDefault()
       m.value = --histIdx === -1 ? liveDraft : hist[histIdx].text
@@ -99,6 +107,23 @@
     if (!(e.metaKey && e.key === "a")) return
     if (e.target.closest("input[type=number], input[type=text]")) return
     e.preventDefault(); $("msg").focus(); $("msg").select() })
+  // ── pre-built prompts — add yours here as {label, text} ────────────────
+  const PROMPTS = [
+    {label: "pro", text: "What's the pro and professional way to do this?"},
+  ]
+  for (const pr of PROMPTS) {
+    const b = document.createElement("button")
+    b.textContent = pr.label
+    const tip = document.createElement("div")   // snippet preview under the button
+    tip.className = "snippet"; tip.textContent = pr.text; tip.hidden = true
+    b.onclick = () => {                         // toggle armed — appended at SEND time
+      pr.armed = !pr.armed
+      b.classList.toggle("active", pr.armed); tip.hidden = !pr.armed
+    }
+    const wrap = document.createElement("div"); wrap.className = "pwrap"
+    wrap.append(b, tip); $("prompts").appendChild(wrap)
+  }
+
   // ── history: last 5 input-bar texts (sent ✓ or abandoned drafts ✎),
   //    kept in localStorage so they survive page reloads ─────────────────
   let hist = JSON.parse(localStorage.getItem("sb-hist") || "[]")
