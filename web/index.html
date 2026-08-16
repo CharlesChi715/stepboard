@@ -20,7 +20,13 @@
   body, button, label, input, textarea { touch-action: manipulation }
 </style>
 
-<iframe src="http://127.0.0.1:7681"></iframe>
+<iframe id="term"></iframe>
+<script>
+  // ask serve.py which ttyd this panel is paired with (claude-s passes it via env)
+  fetch('/config').then(r => r.json())
+    .then(c => { term.src = `http://127.0.0.1:${c.ttyd_port}` })
+    .catch(() => { term.src = 'http://127.0.0.1:7681' })
+</script>
 
 <div id="panel">
   <!-- the MESSAGE -->
