@@ -1,0 +1,9 @@
+<!doctype html>
+<title>My Claude Panel</title>
+<style>body{display:flex;height:100vh;margin:0}iframe{flex:1;border:0}#panel{width:180px;display:flex;flex-direction:column;gap:8px;padding:8px}</style>
+<iframe src="http://127.0.0.1:7681"></iframe>
+<div id="panel">
+  <button onclick="send('Summarize what you have done so far in 5 bullets.')">summarize</button>
+  <button onclick="send('go')">go</button>
+</div>
+<script>const send = t => fetch("/send", {method:"POST", body:JSON.stringify({text:t})})</script>
