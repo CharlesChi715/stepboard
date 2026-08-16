@@ -7,6 +7,10 @@
   fieldset{border:1px solid #ccc;border-radius:8px;display:flex;flex-direction:column;gap:6px}
   textarea{resize:vertical;min-height:70px;font:inherit}
   input[type=number]{width:56px}
+  #sendBtn{padding:12px;font-size:16px;font-weight:600}
+  #sumBtn{margin-top:auto}
+  #hist{display:flex;flex-direction:column;gap:4px;font-size:12px}
+  #hist button{text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   body, button, label, input, textarea { touch-action: manipulation }
 </style>
 
@@ -34,7 +38,10 @@
   </fieldset>
 
   <!-- canned messages — these skip the composer on purpose -->
-  <button onclick="send('Summarize what you have done so far in 5 bullets.')">summarize</button>
+  <button id="sendBtn" onclick="sendComposed()">Send</button>
+  <button onclick="toggleHist()">history</button>
+  <div id="hist" hidden></div>
+  <button id="sumBtn" onclick="sendComposed('Summarize this session.')">summarize</button>
 </div>
 
 <script>
@@ -54,13 +61,74 @@
       : `When editing files, change at most ${lines} lines at a time, then pause so I can review.`)
     return clauses.length ? msg + "\n\n" + clauses.join("\n") : msg
   }
-  function sendComposed() {
-    const msg = $("msg").value.trim()
-    if (msg) send(compose(msg)).then(r => { if (r.ok) $("msg").value = "" })
+  // no argument → sends the input bar (and clears it on success);
+  // with a canned string → sends that instead, leaving your draft alone
+  function sendComposed(text) {
+    const msg = (text ?? $("msg").value).trim()
+    if (msg) send(compose(msg)).then(r => {
+      if (r.ok && text == null) { saveHist(msg, "sent"); $("msg").value = "" } })
   }
   $("msg").addEventListener("keydown", e => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComposed() } })
+    const m = $("msg")
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComposed() }
+    // ↑/↓ cycle history like a terminal — but only from the first/last line,
+    // so arrows still move between lines of a multiline draft
+    else if (e.key === "ArrowUp" && !m.value.slice(0, m.selectionStart).includes("\n")
+             && histIdx + 1 < hist.length) {
+      e.preventDefault()
+      if (histIdx === -1) liveDraft = m.value       // stash what you were typing
+      m.value = hist[++histIdx].text
+    } else if (e.key === "ArrowDown" && !m.value.slice(m.selectionEnd).includes("\n")
+               && histIdx >= 0) {
+      e.preventDefault()
+      m.value = --histIdx === -1 ? liveDraft : hist[histIdx].text
+    } })
+  $("msg").addEventListener("input", () => histIdx = -1)  // editing = it's yours now
   // ⌘K → jump to the input bar (page-side only; the iframe never forwards keys)
   document.addEventListener("keydown", e => {
     if (e.metaKey && e.key === "k") { e.preventDefault(); $("msg").focus() } })
+  // Enter sends from anywhere on the page — except the input bar (own handler
+  // above) and buttons (Enter there means "click me" natively)
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey && !e.metaKey &&
+        e.target.id !== "msg" && e.target.tagName !== "BUTTON") {
+      e.preventDefault(); sendComposed() } })
+  // ⌘A outside a text box = select the input bar's text (kills the page-wide
+  // select-all that highlights every widget when focus drifted to a radio etc.)
+  document.addEventListener("keydown", e => {
+    if (!(e.metaKey && e.key === "a")) return
+    if (e.target.closest("input[type=number], input[type=text]")) return
+    e.preventDefault(); $("msg").focus(); $("msg").select() })
+  // ── history: last 5 input-bar texts (sent ✓ or abandoned drafts ✎),
+  //    kept in localStorage so they survive page reloads ─────────────────
+  let hist = JSON.parse(localStorage.getItem("sb-hist") || "[]")
+  let histIdx = -1, liveDraft = ""      // -1 = you're on your own live text
+  function saveHist(text, kind) {
+    text = text.trim()
+    if (!text) return
+    // same text anywhere in history: drop it, re-insert at top — never duplicated
+    hist = [{text, kind}, ...hist.filter(h => h.text !== text)].slice(0, 5)
+    localStorage.setItem("sb-hist", JSON.stringify(hist)); renderHist()
+  }
+  function renderHist() {
+    const box = $("hist"); box.innerHTML = ""
+    if (!hist.length) { box.textContent = "no history yet"; return }
+    for (const h of hist) {
+      const b = document.createElement("button")
+      b.textContent = (h.kind === "sent" ? "✓ " : "✎ ") + h.text
+      b.title = h.text
+      b.onclick = () => { $("msg").value = h.text; $("msg").focus() }
+      box.appendChild(b)
+    }
+  }
+  function toggleHist() { $("hist").hidden = !$("hist").hidden; renderHist() }
+  $("msg").addEventListener("blur", () => saveHist($("msg").value, "draft"))
+  // picking a length unit pops that unit's default into the number box
+  const UNIT_DEFAULTS = {sentences: 2, words: 100}
+  document.querySelectorAll("[name=unit]").forEach(r =>
+    r.addEventListener("change", () => {
+      if (r.value in UNIT_DEFAULTS) {
+        $("n").value = UNIT_DEFAULTS[r.value]
+        $("n").focus(); $("n").select()          // type to overwrite immediately
+      } }))
 </script>
