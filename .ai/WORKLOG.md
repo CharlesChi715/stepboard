@@ -31,3 +31,8 @@
 - §2 ASCII map redrawn: FastAPI serve.py, GET /config handshake, SB_SESSION/SB_TTYD_PORT env pair, multi-session note.
 - §3 Must-do: added shipped items (message history, multi-session, prompt template buttons + edits color coding).
 - §1 raw batch marked "distilled into §3, shipped" (kept, never deleted).
+
+## 2026-08-16 — docs refresh + launcher in repo
+- bin/claude-s: repo copy of the launcher (cd → script-relative repo root; chmod +x).
+- README.md: quick start via ./bin/claude-s + uv/uvicorn, /config diagram, session-ports table, PROMPTS customize example, 768N/800N security note.
+- SUMMARY.md: files chart + current state brought to 2026-08-16 (FastAPI, panel v2, multi-session, all committed).
