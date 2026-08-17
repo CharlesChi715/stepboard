@@ -9,10 +9,14 @@
   input[type=number]{width:56px}
   #sendBtn{padding:12px;font-size:16px;font-weight:600}
   #sumBtn{margin-top:auto}
-  #prompts{flex-direction:row;flex-wrap:wrap;gap:8px}
+  #prompts{flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:8px}
   .pwrap{display:flex;flex-direction:column;gap:2px}
+  .prow{display:flex;gap:2px}
   .snippet{font-size:11px;color:#888;max-width:180px}
   #prompts button.active{background:#2b44c4;border-color:#2b44c4;color:#fff}
+  .del{padding:0 5px;line-height:1;color:#c0392b}
+  #newForm{flex-basis:100%;display:flex;flex-direction:column;gap:4px}
+  #newForm textarea{min-height:48px}
   fieldset.danger{border-color:#c0392b} fieldset.danger legend{color:#c0392b}
   fieldset.ok{border-color:#1e7a40} fieldset.ok legend{color:#1e7a40}
   #hist{display:flex;flex-direction:column;gap:4px;font-size:12px}
@@ -49,8 +53,16 @@
     <label>≤ <input type="number" id="lines" min="0"> lines per step (0 = no edits)</label>
   </fieldset>
 
-  <!-- canned messages — these skip the composer on purpose -->
-  <fieldset id="prompts"><legend>prompts</legend></fieldset>
+  <!-- canned messages — these skip the composer on purpose.
+       buttons are built by JS; "+" opens the form that adds your own -->
+  <fieldset id="prompts"><legend>prompts</legend>
+    <button id="newBtn" title="new prompt" onclick="toggleNew()">+</button>
+    <div id="newForm" hidden>
+      <input id="pLabel" type="text" placeholder="button label" maxlength="24">
+      <textarea id="pText" placeholder="prompt text… (Enter adds, Esc cancels)"></textarea>
+      <button onclick="addMine()">add</button>
+    </div>
+  </fieldset>
 
   <button id="sendBtn" onclick="sendComposed()">Send</button>
   <button onclick="toggleHist()">history</button>
@@ -104,22 +116,31 @@
   document.addEventListener("keydown", e => {
     if (e.metaKey && e.key === "k") { e.preventDefault(); $("msg").focus() } })
   // Enter sends from anywhere on the page — except the input bar (own handler
-  // above) and buttons (Enter there means "click me" natively)
+  // above), the new-prompt form (own handler below) and buttons (Enter there
+  // means "click me" natively)
   document.addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.shiftKey && !e.metaKey &&
-        e.target.id !== "msg" && e.target.tagName !== "BUTTON") {
+        e.target.id !== "msg" && e.target.tagName !== "BUTTON" &&
+        !e.target.closest("#newForm")) {
       e.preventDefault(); sendComposed() } })
   // ⌘A outside a text box = select the input bar's text (kills the page-wide
   // select-all that highlights every widget when focus drifted to a radio etc.)
   document.addEventListener("keydown", e => {
     if (!(e.metaKey && e.key === "a")) return
-    if (e.target.closest("input[type=number], input[type=text]")) return
+    if (e.target.closest("input[type=number], input[type=text], #newForm textarea")) return
     e.preventDefault(); $("msg").focus(); $("msg").select() })
   // ── pre-built prompts — add yours here as {label, text} ────────────────
   const PROMPTS = [
     {label: "pro", text: "What's the pro and professional way to do this?"},
   ]
-  for (const pr of PROMPTS) {
+  // …plus the ones you type into the "+" form. sessionStorage = they last as
+  // long as this browser tab does: a reload keeps them, a new tab starts clean.
+  for (const pr of JSON.parse(sessionStorage.getItem("sb-prompts") || "[]"))
+    PROMPTS.push({...pr, mine: true})           // mine = yours, so deletable + saved
+  const saveMine = () => sessionStorage.setItem("sb-prompts", JSON.stringify(
+    PROMPTS.filter(p => p.mine).map(({label, text}) => ({label, text}))))  // drop `armed`
+
+  function renderPrompt(pr) {
     const b = document.createElement("button")
     b.textContent = pr.label
     const tip = document.createElement("div")   // snippet preview under the button
@@ -128,9 +149,42 @@
       pr.armed = !pr.armed
       b.classList.toggle("active", pr.armed); tip.hidden = !pr.armed
     }
+    const row = document.createElement("div"); row.className = "prow"; row.append(b)
+    if (pr.mine) {                              // only your own get a delete ×
+      const x = document.createElement("button")
+      x.className = "del"; x.textContent = "×"; x.title = "remove"
+      x.onclick = () => {
+        PROMPTS.splice(PROMPTS.indexOf(pr), 1); wrap.remove(); saveMine()
+      }
+      row.append(x)
+    }
     const wrap = document.createElement("div"); wrap.className = "pwrap"
-    wrap.append(b, tip); $("prompts").appendChild(wrap)
+    wrap.append(row, tip)
+    $("newBtn").before(wrap)                    // keep "+" last in the row
   }
+  PROMPTS.forEach(renderPrompt)
+
+  // ── the "+" form: type a label + text → a new toggleable prompt button ──
+  function toggleNew() {
+    const f = $("newForm"); f.hidden = !f.hidden
+    $("newBtn").textContent = f.hidden ? "+" : "−"
+    if (!f.hidden) $("pLabel").focus()
+  }
+  function addMine() {
+    const label = $("pLabel").value.trim(), text = $("pText").value.trim()
+    if (!label || !text) { $(label ? "pText" : "pLabel").focus(); return }
+    const pr = {label, text, mine: true}
+    PROMPTS.push(pr); renderPrompt(pr); saveMine()
+    $("pLabel").value = $("pText").value = ""
+    toggleNew()                                 // added → collapse, back to "+"
+  }
+  // this form lives inside the page, so it must win the page-wide Enter/⌘A keys
+  $("newForm").addEventListener("keydown", e => {
+    if (e.key === "Escape") { toggleNew() }
+    else if (e.key === "Enter" && !e.shiftKey && e.target.tagName !== "BUTTON") {
+      e.preventDefault()
+      e.target.id === "pLabel" ? $("pText").focus() : addMine()
+    } })
 
   // ── history: last 5 input-bar texts (sent ✓ or abandoned drafts ✎),
   //    kept in localStorage so they survive page reloads ─────────────────

@@ -36,3 +36,14 @@
 - bin/claude-s: repo copy of the launcher (cd → script-relative repo root; chmod +x).
 - README.md: quick start via ./bin/claude-s + uv/uvicorn, /config diagram, session-ports table, PROMPTS customize example, 768N/800N security note.
 - SUMMARY.md: files chart + current state brought to 2026-08-16 (FastAPI, panel v2, multi-session, all committed).
+
+
+## 2026-08-17 — custom prompt buttons
+
+- web/index.html: `+` button in the prompts fieldset opens an inline form
+  (label + text) that registers a new toggleable prompt button.
+- Stored in sessionStorage (`sb-prompts`) → survives reload, per browser tab.
+  `×` on your own buttons removes them; built-ins have no `×`.
+- Refactored the render loop into `renderPrompt(pr)` so add/restore reuse it.
+- Guarded the page-wide Enter and ⌘A handlers so the form keeps its own keys.
+- Verified: 21 headless-Chrome DOM assertions + a sessionStorage restore test.
