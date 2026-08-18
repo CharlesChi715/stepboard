@@ -6,7 +6,9 @@
 stepboard/
 ├── serve.py         # one server: GET serves web/, POST /send → tmux send-keys
 ├── web/
-│   └── index.html   # panel page: iframe (ttyd :7681) + prompt buttons
+│   ├── index.html   # panel page: terminal + prompt buttons
+│   ├── term.js      # our xterm.js client → ttyd's WebSocket (no iframe)
+│   └── vendor/      # xterm.js 5.5 + fit addon, vendored (offline-safe)
 ├── IDEAS.md         # Charles's idea notebook — raw dump → pitch → decisions
 ├── README.md        # quick start, pipeline chart, customization, security
 └── .ai/WORKLOG.md   # dated work history (ask Charles before reading)
@@ -20,7 +22,9 @@ stepboard/
 
 ## Current state (2026-08-15)
 
-- Working minimum: ttyd+tmux CLI in an iframe + buttons → POST /send → tmux.
+- Working minimum: ttyd+tmux CLI + buttons → POST /send → tmux.
+- Left pane is OUR xterm.js (not ttyd's page in an iframe), so the terminal
+  selection is readable: ⌘⇧L copies it into the input bar and focuses it.
 - Stack: `ttyd -W -i lo0 -p 7681 tmux new -A -s sb claude` + `python3 serve.py`.
 - Old full StepBoard: git @ 2a92f3f. Post-wipe work is still UNCOMMITTED.
 
