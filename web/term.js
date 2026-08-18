@@ -10,8 +10,11 @@ const term = new Terminal({
 })
 const fit = new FitAddon.FitAddon()
 term.loadAddon(fit)
-term.open(document.getElementById('term'))
-fit.fit()
+const host = document.getElementById('term')
+term.open(host)
+// fit whenever the box changes size — the right panel is not in the DOM yet when
+// this script runs, so an immediate fit() would size us to the whole window
+new ResizeObserver(() => { try { fit.fit() } catch {} }).observe(host)
 
 const enc = new TextEncoder(), dec = new TextDecoder()
 let sock = null
@@ -21,7 +24,6 @@ const live = () => sock && sock.readyState === 1
 term.onData(d => { if (live()) sock.send(enc.encode('0' + d)) })
 term.onResize(() => { if (live()) sock.send(
   enc.encode('1' + JSON.stringify({columns: term.cols, rows: term.rows}))) })
-addEventListener('resize', () => fit.fit())
 
 function connect(port) {
   sock = new WebSocket(`ws://127.0.0.1:${port}/ws`, ['tty'])  // ttyd insists on this subprotocol
