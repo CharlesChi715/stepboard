@@ -16,6 +16,8 @@ export function useTtyd({ onSelection } = {}) {
     const term = new Terminal({
       fontSize: 13, fontFamily: 'Menlo, monospace', cursorBlink: true,
       scrollback: 10000, theme: { background: '#000000' },
+      macOptionClickForcesSelection: true,   // xterm's force-selection lever on macOS…
+      altClickMovesCursor: false,            // …without Option-click typing arrow keys
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
@@ -25,6 +27,37 @@ export function useTtyd({ onSelection } = {}) {
     // the right panel is laid out after us, so fit on every size change, not once
     const ro = new ResizeObserver(() => { try { fit.fit() } catch { /* pre-layout */ } })
     ro.observe(hostRef.current)
+
+    // Drag = select text, like any editor. Claude Code turns on all-motion mouse
+    // reporting, so without this a drag is forwarded to the app, which pans its
+    // own view (the "page drifts, cursor goes circle" symptom) and no text is
+    // selected. Fix, ported from the 2026-07 StepBoard: swallow the real mouse
+    // event and re-dispatch a clone carrying alt+shift, which xterm reads as
+    // "force selection". Trade-off: mouse clicks never reach the CLI app itself.
+    const clone = e => new MouseEvent(e.type, {
+      bubbles: true, cancelable: true, composed: true,
+      clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY,
+      button: e.button, buttons: e.buttons, detail: e.detail,
+      shiftKey: true, altKey: true, metaKey: e.metaKey, ctrlKey: e.ctrlKey,
+    })
+    let dragging = false
+    const forceSelect = e => {
+      if (!e.isTrusted) return                              // our own clones pass through
+      if (e.type === 'mousemove' || e.type === 'mouseup') { // mid-drag: re-target at the
+        if (!dragging) return                               // document, where xterm's
+        if (e.type === 'mouseup') { dragging = false; e.preventDefault() }
+        e.stopImmediatePropagation()                        // selection tracker listens —
+        document.dispatchEvent(clone(e))                    // the app's reporting does not
+        return
+      }
+      if (!e.target.closest?.('.xterm')) return
+      if (e.type === 'mousedown' && e.button === 0) dragging = true
+      e.stopImmediatePropagation()
+      e.preventDefault()                                    // kills the native drag too
+      e.target.dispatchEvent(clone(e))
+    }
+    const MOUSE = ['mousedown', 'mousemove', 'mouseup', 'click', 'dblclick']
+    MOUSE.forEach(t => document.addEventListener(t, forceSelect, true))
 
     const enc = new TextEncoder(), dec = new TextDecoder()
     let sock = null
@@ -60,6 +93,7 @@ export function useTtyd({ onSelection } = {}) {
 
     return () => {                          // StrictMode mounts twice in dev: leave nothing behind
       dead = true
+      MOUSE.forEach(t => document.removeEventListener(t, forceSelect, true))
       offData.dispose(); offSize.dispose(); offSel.dispose()
       ro.disconnect()
       if (sock) { sock.onclose = null; sock.close() }

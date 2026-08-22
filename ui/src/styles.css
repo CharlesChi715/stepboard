@@ -5,6 +5,10 @@ body { margin: 0; height: 100vh; font: 14px system-ui; }
 
 .term { flex: 1; min-width: 0; background: #000; padding: 4px 0 4px 6px; overflow: hidden; }
 .term .xterm { height: 100%; }
+/* I-beam, never the drag-a-thing circle: xterm switches to `default` while an
+   app has mouse reporting on, and macOS shows "no drop" for a native drag */
+.term .xterm-screen, .term .xterm-rows { cursor: text; }
+.term canvas, .term .xterm-rows { -webkit-user-drag: none; user-select: none; }
 
 /* overflow-y matters: without it, `margin-top:auto` on the last button pushes
    the top of the column off-screen once the panel outgrows the window */
