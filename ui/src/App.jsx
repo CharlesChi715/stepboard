@@ -30,7 +30,7 @@ export default function App() {
   const onSelection = useCallback(s => flash(`selected: ${s.length} chars`), [flash])
   const onKeyReport = useCallback(e => flash(
     `key: ${e.code} meta=${e.metaKey} ctrl=${e.ctrlKey} alt=${e.altKey} hit=${isGrabKey(e)}`), [flash])
-  const { hostRef, takeSelection } = useTtyd({ onSelection, onKeyReport })
+  const { hostRef, takeSelection } = useTtyd({ onSelection })
 
   // ⌘⇧L (or the button): terminal selection → input bar → focus, caret at the end
   const grab = useCallback(() => {
@@ -56,13 +56,16 @@ export default function App() {
 
   useEffect(() => {
     const onKey = e => {
+      // badge first, so it reports the combo even when the browser eats the rest
+      if (e.metaKey || e.ctrlKey || e.altKey) onKeyReport(e)
       if (isGrabKey(e)) { e.preventDefault(); e.stopPropagation(); grab(); return }
       const inTerminal = hostRef.current?.contains(e.target)   // keys typed at the CLI are the CLI's
-      if (e.metaKey && (e.code === 'KeyK' || e.key === 'k')) {
+      const plain = !e.shiftKey && !e.altKey                   // ⌘K/⌘A only — leave ⌘⇧K, ⌥⌘K alone
+      if (plain && e.metaKey && (e.code === 'KeyK' || e.key === 'k')) {
         e.preventDefault(); inputRef.current?.focus(); return
       }
       if (inTerminal) return
-      if (e.metaKey && (e.code === 'KeyA' || e.key === 'a')) {
+      if (plain && e.metaKey && (e.code === 'KeyA' || e.key === 'a')) {
         if (e.target.closest?.('input[type=number], input[type=text], textarea')) return
         e.preventDefault(); inputRef.current?.focus(); inputRef.current?.select(); return
       }
@@ -75,7 +78,7 @@ export default function App() {
     }
     document.addEventListener('keydown', onKey, true)
     return () => document.removeEventListener('keydown', onKey, true)
-  }, [grab, sendComposed, hostRef])
+  }, [grab, sendComposed, hostRef, onKeyReport])
 
   return (
     <>

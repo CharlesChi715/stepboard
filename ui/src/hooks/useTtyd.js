@@ -7,7 +7,7 @@ import { FitAddon } from '@xterm/addon-fit'
 //
 //   keys  ──▶ xterm ──ws "0"+data──▶ ttyd ──▶ tmux ──▶ claude
 //   screen ◀── xterm ◀─ws "0"+bytes── ttyd ◀───────────────┘
-export function useTtyd({ onSelection, onKeyReport } = {}) {
+export function useTtyd({ onSelection } = {}) {
   const hostRef = useRef(null)
   const termRef = useRef(null)
   const lastSel = useRef('')                 // survives a selection cleared by focus loss
@@ -38,7 +38,9 @@ export function useTtyd({ onSelection, onKeyReport } = {}) {
       if (s) { lastSel.current = s; onSelection?.(s) }
     })
 
+    let dead = false                          // cleanup may run while /config is still in flight
     const connect = port => {
+      if (dead) return                        // …in which case never open the socket at all
       sock = new WebSocket(`ws://127.0.0.1:${port}/ws`, ['tty'])   // ttyd insists on this subprotocol
       sock.binaryType = 'arraybuffer'
       sock.onopen = () => sock.send(enc.encode(JSON.stringify(     // ttyd's handshake, always first
@@ -57,6 +59,7 @@ export function useTtyd({ onSelection, onKeyReport } = {}) {
       .then(c => connect(c.ttyd_port)).catch(() => connect(7681))
 
     return () => {                          // StrictMode mounts twice in dev: leave nothing behind
+      dead = true
       offData.dispose(); offSize.dispose(); offSel.dispose()
       ro.disconnect()
       if (sock) { sock.onclose = null; sock.close() }
@@ -65,13 +68,11 @@ export function useTtyd({ onSelection, onKeyReport } = {}) {
     }
   }, [])                                    // eslint-disable-line react-hooks/exhaustive-deps
 
-  // xterm must not swallow our shortcut; the key report feeds the on-screen badge
+  // xterm must not swallow our shortcut (returning false = "not yours").
+  // The key report lives in App's document listener, so it sees panel keys too.
   useEffect(() => {
-    termRef.current?.attachCustomKeyEventHandler(e => {
-      if (e.type === 'keydown' && (e.metaKey || e.ctrlKey || e.altKey)) onKeyReport?.(e)
-      return !isGrabKey(e)
-    })
-  }, [onKeyReport])
+    termRef.current?.attachCustomKeyEventHandler(e => !isGrabKey(e))
+  }, [])
 
   const takeSelection = useCallback(() => {
     const term = termRef.current
