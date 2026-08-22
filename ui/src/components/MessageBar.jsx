@@ -28,6 +28,10 @@ export default function MessageBar({ value, setValue, onSend, hist, onBlurSave, 
     <textarea
       ref={inputRef}
       value={value}
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
+      autoComplete="off"
       placeholder="Type to Claude… (Enter sends, Shift+Enter = newline)"
       onChange={e => { idx.current = -1; setValue(e.target.value) }}  // editing = it's yours now
       onKeyDown={onKeyDown}

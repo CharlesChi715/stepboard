@@ -36,3 +36,5 @@
 - bin/claude-s: repo copy of the launcher (cd → script-relative repo root; chmod +x).
 - README.md: quick start via ./bin/claude-s + uv/uvicorn, /config diagram, session-ports table, PROMPTS customize example, 768N/800N security note.
 - SUMMARY.md: files chart + current state brought to 2026-08-16 (FastAPI, panel v2, multi-session, all committed).
+
+- 2026-08-22 · MessageBar textarea: added autoCorrect/autoCapitalize/spellCheck/autoComplete off — kills browser autocorrect in the composer (Claude, on Charles's "u do it").
