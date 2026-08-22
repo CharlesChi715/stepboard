@@ -13,6 +13,12 @@ TTYD_PORT = os.environ.get("SB_TTYD_PORT", "7681")  # which port the iframe shou
 def config():
     return {"ttyd_port": TTYD_PORT, "session": SESSION}
 
+@app.middleware("http")                          # dev panel: never serve a stale page
+async def no_cache(request, call_next):          # (Safari loves to keep old JS around)
+    resp = await call_next(request)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
 class Send(BaseModel):                           # declares what /send's body must be:
     text: str                                    #   {"text": "some string"}
 

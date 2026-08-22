@@ -25,11 +25,12 @@
 <div id="term"></div>
 <script src="/vendor/xterm.js"></script>
 <script src="/vendor/addon-fit.js"></script>
-<script src="/term.js"></script>
+<script src="/term.js?v=3"></script>
 
 <div id="panel">
   <!-- the MESSAGE -->
   <textarea id="msg" placeholder="Type to Claude… (Enter sends, Shift+Enter = newline)"></textarea>
+  <button id="grabBtn" title="same as ⌘⇧L">⤵ take terminal selection</button>
 
   <!-- CONSTRAINTS — each appends one clause; blank / unticked appends nothing -->
   <fieldset>

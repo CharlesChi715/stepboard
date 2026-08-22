@@ -43,15 +43,52 @@ function connect(port) {
 fetch('/config').then(r => r.json()).then(c => connect(c.ttyd_port)).catch(() => connect(7681))
 
 // ── ⌘⇧L: one shot — terminal selection → input bar → focus, caret at the end ──
-// xterm grabs keys first, so tell it to ignore this one (returning false = "not yours")
-term.attachCustomKeyEventHandler(e => !(e.metaKey && e.shiftKey && e.key.toLowerCase() === 'l'))
-document.addEventListener('keydown', e => {
-  if (!(e.metaKey && e.shiftKey && e.key.toLowerCase() === 'l')) return
-  e.preventDefault()
-  const picked = term.getSelection().replace(/\s+$/, '')
-  if (!picked) return
+// e.code is layout-proof; ⌃⇧L too, in case Safari eats the ⌘ combo. The badge
+// says which half fired, so a silent failure is never a mystery.
+const hit = e => e.shiftKey && (e.metaKey || e.ctrlKey) &&
+                 (e.code === 'KeyL' || (e.key || '').toLowerCase() === 'l')
+
+function badge(text, bad) {
+  let b = document.getElementById('sbBadge')
+  if (!b) {
+    b = document.createElement('div'); b.id = 'sbBadge'
+    b.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9;padding:3px 8px;' +
+      'border-radius:6px;font:12px system-ui;color:#fff;pointer-events:none'
+    document.body.appendChild(b)
+  }
+  b.textContent = text; b.style.background = bad ? '#c0392b' : '#1e7a40'; b.style.opacity = 1
+  clearTimeout(badge.t); badge.t = setTimeout(() => b.style.opacity = 0, 3000)
+}
+
+// remember every selection: some browsers drop it the moment focus leaves the
+// terminal (clicking the button, or the ⌘ key itself), so live-read + fallback
+let lastSel = ''
+term.onSelectionChange(() => {
+  const s = term.getSelection()
+  if (s) { lastSel = s; badge(`selected: ${s.length} chars`) }
+})
+
+function grabSelection() {
+  const picked = (term.getSelection() || lastSel).replace(/\s+$/, '')
+  if (!picked) return badge('⌘⇧L: nothing selected', true)
   const m = document.getElementById('msg')
   m.value = m.value.trim() ? m.value.replace(/\s*$/, '') + '\n' + picked : picked
   m.focus()
   m.setSelectionRange(m.value.length, m.value.length)
+  badge(`⌘⇧L: ${picked.length} chars →`)
+}
+
+addEventListener('DOMContentLoaded', () => {                // button = the same job, no keys involved
+  const b = document.getElementById('grabBtn')
+  if (b) b.addEventListener('click', grabSelection)
+})
+addEventListener('keydown', e => {                          // show modified keys on screen,
+  if (e.metaKey || e.ctrlKey || e.altKey)                    // so no Web Inspector needed
+    badge(`key: ${e.code} meta=${e.metaKey} ctrl=${e.ctrlKey} alt=${e.altKey} hit=${hit(e)}`)
+}, true)
+term.attachCustomKeyEventHandler(e => !hit(e))          // don't let xterm eat it
+document.addEventListener('keydown', e => {
+  if (!hit(e)) return
+  e.preventDefault(); e.stopPropagation()
+  grabSelection()
 }, true)
