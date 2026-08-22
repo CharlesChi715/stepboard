@@ -63,6 +63,8 @@
 - .gitignore: + .venv/, generalized node_modules/.
 - All 32 checks pass against a throwaway sbtidy stack (:7691/:8011).
 
+- 2026-08-22 · MessageBar textarea: added autoCorrect/autoCapitalize/spellCheck/autoComplete off — kills browser autocorrect in the composer (Claude, on Charles's "u do it").
+
 ## 2026-08-22 — drop the "take terminal selection" button
 - Removed the `⤵ take terminal selection` button from the panel (App.jsx);
   ⌘⇧L keeps working — it calls the same `grab` via the global keydown handler.
