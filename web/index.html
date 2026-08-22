@@ -103,6 +103,19 @@
   // ⌘K → jump to the input bar (page-side only; the iframe never forwards keys)
   document.addEventListener("keydown", e => {
     if (e.metaKey && e.key === "k") { e.preventDefault(); $("msg").focus() } })
+  // ⌘⇧L → paste what you just ⌘C'd in the CLI into the input bar, then focus it
+  document.addEventListener("keydown", async e => {
+    if (!(e.metaKey && e.shiftKey && e.key.toLowerCase() === "l")) return
+    e.preventDefault()
+    let t = ""
+    try { t = await navigator.clipboard.readText() } catch { return }  // denied/empty
+    t = t.replace(/\s+$/, "")
+    if (!t) return
+    const m = $("msg")
+    m.value = m.value.trim() ? m.value.replace(/\s*$/, "") + "\n" + t : t
+    m.focus()
+    m.setSelectionRange(m.value.length, m.value.length)
+  })
   // Enter sends from anywhere on the page — except the input bar (own handler
   // above) and buttons (Enter there means "click me" natively)
   document.addEventListener("keydown", e => {
