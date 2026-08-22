@@ -32,13 +32,16 @@ export function useTtyd({ onSelection } = {}) {
     // reporting, so without this a drag is forwarded to the app, which pans its
     // own view (the "page drifts, cursor goes circle" symptom) and no text is
     // selected. Fix, ported from the 2026-07 StepBoard: swallow the real mouse
-    // event and re-dispatch a clone carrying alt+shift, which xterm reads as
-    // "force selection". Trade-off: mouse clicks never reach the CLI app itself.
+    // event and re-dispatch a clone carrying alt, which xterm reads as "force
+    // selection". Do NOT force shift as well: with reporting OFF, xterm's
+    // SelectionService reads shift+mousedown as "extend the existing selection",
+    // so the first drag would select nothing at all.
+    // Trade-off: mouse clicks never reach the CLI app itself.
     const clone = e => new MouseEvent(e.type, {
       bubbles: true, cancelable: true, composed: true,
       clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY,
       button: e.button, buttons: e.buttons, detail: e.detail,
-      shiftKey: true, altKey: true, metaKey: e.metaKey, ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey, altKey: true, metaKey: e.metaKey, ctrlKey: e.ctrlKey,
     })
     let dragging = false
     const forceSelect = e => {

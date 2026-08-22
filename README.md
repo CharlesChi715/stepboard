@@ -65,10 +65,13 @@ Each `claude-s` run adds an independent session — its own tmux, ttyd, and pane
 - `ui/src/hooks/useTtyd.js` — xterm.js + ttyd's wire protocol in ~60 lines
 - `ui/src/lib/compose.js` — message + constraints → the text Claude receives
 - `bin/claude-s` — launcher: finds free slot N, starts ttyd + uvicorn, opens panel
-- `tests/` — headless browser checks (see `tests/README.md`)
-- `web/` — the original vanilla page, kept as reference, served at `/legacy`
+- `tests/` — headless browser checks, `npm test` (see `tests/README.md`)
 - `pyproject.toml` + `uv.lock` — Python deps (FastAPI, uvicorn) for `uv run`
+- `package.json` — test deps (Playwright); the panel's own deps live in `ui/`
 - `IDEAS.md` — project notebook: raw ideas → decisions
+
+The original vanilla-JS page this replaced lives in git history:
+`git show 49f09b0:web/index.html`.
 
 ## Customize
 

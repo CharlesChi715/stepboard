@@ -7,7 +7,7 @@ import os                                        # to read the env vars claude-s
 app = FastAPI()                                  # THE app — what "serve:app" points at
 
 SESSION = os.environ.get("SB_SESSION", "sb")     # which tmux session /send targets
-TTYD_PORT = os.environ.get("SB_TTYD_PORT", "7681")  # which port the iframe should load
+TTYD_PORT = os.environ.get("SB_TTYD_PORT", "7681")  # which port the terminal should talk to
 
 @app.get("/config")                              # the browser asks: "which ttyd am I paired with?"
 def config():
@@ -24,13 +24,14 @@ class Send(BaseModel):                           # declares what /send's body mu
 
 @app.post("/send")                               # route: POST /send → the function below
 def send(body: Send):                            # body arrives already parsed + validated
-    print('----- POST /send -----')                               # log it to the console
-    print(f"body: {body}")                       # log it to the console
+    print(f"POST /send  {body.text!r}")          # one line per send, so the log stays readable
     subprocess.run(["tmux", "send-keys", "-t", SESSION, "-l", "--", body.text])
     subprocess.run(["tmux", "send-keys", "-t", SESSION, "Enter"])
     return {"ok": True}                          # auto-JSON, status 200
 
-# must stay LAST: "/" catches everything, so /send has to be registered first
+# must stay LAST: "/" catches everything, so /config and /send have to be registered first.
+# Absolute path, so the panel is found whichever directory uvicorn was started from.
 UI = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "dist")
-app.mount("/legacy", StaticFiles(directory="web", html=True))   # the old vanilla page
-app.mount("/", StaticFiles(directory=UI if os.path.isdir(UI) else "web", html=True))
+if not os.path.isdir(UI):                        # a missing build is a setup mistake, not a 404 —
+    raise SystemExit(f"no panel build at {UI}\nrun: cd ui && npm install && npm run build")
+app.mount("/", StaticFiles(directory=UI, html=True))
