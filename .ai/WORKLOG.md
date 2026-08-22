@@ -62,3 +62,9 @@
 - vite.config.js dev-proxy default 8000 → 8001 (a real session port).
 - .gitignore: + .venv/, generalized node_modules/.
 - All 32 checks pass against a throwaway sbtidy stack (:7691/:8011).
+
+## 2026-08-22 — drop the "take terminal selection" button
+- Removed the `⤵ take terminal selection` button from the panel (App.jsx);
+  ⌘⇧L keeps working — it calls the same `grab` via the global keydown handler.
+- parity.mjs: dropped the button-path check (23 → 22); npm test 31/31 green.
+- Docs: SUMMARY + tests/README counts updated.

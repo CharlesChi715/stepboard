@@ -86,8 +86,6 @@ export default function App() {
       <div className="panel">
         <MessageBar value={msg} setValue={setMsg} onSend={() => sendComposed()}
                     hist={hist} onBlurSave={v => save(v, 'draft')} inputRef={inputRef} />
-        <button onClick={grab} title="same as ⌘⇧L">⤵ take terminal selection</button>
-
         <Length unit={unit} n={n} onUnit={setUnit} onN={setN} />
         <Format chart={chart} onChart={setChart} />
         <Edits lines={lines} onLines={setLines} />
