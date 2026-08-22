@@ -1,0 +1,37 @@
+@import "@xterm/xterm/css/xterm.css";
+
+body { margin: 0; height: 100vh; font: 14px system-ui; }
+#root { display: flex; height: 100vh; }
+
+.term { flex: 1; min-width: 0; background: #000; padding: 4px 0 4px 6px; overflow: hidden; }
+.term .xterm { height: 100%; }
+
+/* overflow-y matters: without it, `margin-top:auto` on the last button pushes
+   the top of the column off-screen once the panel outgrows the window */
+.panel { width: 230px; display: flex; flex-direction: column; gap: 10px; padding: 10px;
+         overflow-y: auto; min-height: 0; }
+.panel fieldset { border: 1px solid #ccc; border-radius: 8px;
+                  display: flex; flex-direction: column; gap: 6px; }
+.panel textarea { resize: vertical; min-height: 70px; font: inherit; }
+.panel input[type=number] { width: 56px; }
+
+.send { padding: 12px; font-size: 16px; font-weight: 600; }
+.summarize { margin-top: auto; }
+
+.prompts { flex-direction: row !important; flex-wrap: wrap; gap: 8px !important; }
+.pwrap { display: flex; flex-direction: column; gap: 2px; }
+.snippet { font-size: 11px; color: #888; max-width: 180px; }
+.prompts button.active { background: #2b44c4; border-color: #2b44c4; color: #fff; }
+
+fieldset.danger { border-color: #c0392b; } fieldset.danger legend { color: #c0392b; }
+fieldset.ok { border-color: #1e7a40; } fieldset.ok legend { color: #1e7a40; }
+
+.hist { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.hist button { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.badge { position: fixed; left: 8px; bottom: 8px; z-index: 9; padding: 3px 8px;
+         border-radius: 6px; font: 12px system-ui; color: #fff; pointer-events: none;
+         transition: opacity .2s; }
+.badge.ok { background: #1e7a40; } .badge.bad { background: #c0392b; }
+
+body, button, label, input, textarea { touch-action: manipulation; }

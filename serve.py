@@ -31,4 +31,6 @@ def send(body: Send):                            # body arrives already parsed +
     return {"ok": True}                          # auto-JSON, status 200
 
 # must stay LAST: "/" catches everything, so /send has to be registered first
-app.mount("/", StaticFiles(directory="web", html=True))
+UI = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "dist")
+app.mount("/legacy", StaticFiles(directory="web", html=True))   # the old vanilla page
+app.mount("/", StaticFiles(directory=UI if os.path.isdir(UI) else "web", html=True))
