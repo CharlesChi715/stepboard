@@ -50,3 +50,15 @@
 - Fix (a1f49ea): pass the real `shiftKey` through; alt alone is what forces selection.
 - Full suite green on main: 34/34 (23 parity + 7 regressions + 4 drag-select).
 - Not pushed — main is Charles's branch.
+
+## 2026-08-22 — tidy-up (Claude, background job)
+
+- Deleted `web/` (vanilla page + vendored xterm, ~310 KB) and the `/legacy` mount;
+  reference lives at `git show 49f09b0:web/index.html`. 2 legacy tests removed.
+- serve.py: fails fast when `ui/dist` is missing; one-line send log; no silent web/ fallback.
+- tests/: shared `harness.mjs` (launch, PASS/FAIL log, non-zero exit on failure);
+  suites keep their checks 1:1. Root `package.json` pins playwright, adds `npm test`.
+- Hardcoded Chromium path dropped — CHROME_PATH still overrides.
+- vite.config.js dev-proxy default 8000 → 8001 (a real session port).
+- .gitignore: + .venv/, generalized node_modules/.
+- All 32 checks pass against a throwaway sbtidy stack (:7691/:8011).
