@@ -31,12 +31,15 @@ stepboard/
 - Stack: `./bin/claude-s` → ttyd+tmux (`sbN`, :768N) + FastAPI panel (:800N).
 - The panel draws the terminal itself with xterm.js (no iframe), so the terminal
   selection is readable — that is what ⌘⇧L needs.
-- UI is React + Vite; 30 headless checks pass (23 parity + 7 regression).
+- UI is React + Vite; 34 headless checks pass (23 parity + 7 regression +
+  4 drag-select).
+- Drag in the terminal selects text even while Claude Code has mouse reporting
+  on: mouse events are re-dispatched as alt-carrying clones (force selection).
+  Never force shift too — that makes xterm extend a selection instead of
+  starting one. Cost: mouse clicks never reach the CLI app itself.
 - Multi-session: env pair `SB_SESSION`/`SB_TTYD_PORT`; panel asks GET /config.
-- ⌘⇧L works in headless Chromium; **unconfirmed in Charles's Safari** — an
-  on-screen badge reports selection length, the key that arrived, and the match.
 
 ## Next potential steps
 
-- Charles: confirm ⌘⇧L in Safari via the badge; if the key never arrives, rebind.
+- Charles: confirm drag-select + ⌘⇧L in Safari (only Chromium is covered).
 - Later: auto-reconnect when ttyd drops · error handling (dead tmux) · more prompts.

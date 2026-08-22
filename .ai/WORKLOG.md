@@ -36,3 +36,17 @@
 - bin/claude-s: repo copy of the launcher (cd → script-relative repo root; chmod +x).
 - README.md: quick start via ./bin/claude-s + uv/uvicorn, /config diagram, session-ports table, PROMPTS customize example, 768N/800N security note.
 - SUMMARY.md: files chart + current state brought to 2026-08-16 (FastAPI, panel v2, multi-session, all committed).
+
+## 2026-08-22 — merge react-ui into main + fix the regression it carried
+- main was 2 commits behind origin/main; `git merge --ff-only react-ui` fast-forwarded
+  8bfcf07 → 49a7d4c (drag-select fix + favicon). No merge commit.
+- Verified before/after in throwaway worktrees (ttyd :7691 + tmux `sbtest` + panel :8011):
+  pre-merge parity 23/23 but drag-select 0/4; post-merge drag-select 4/4 but parity 20/23.
+- Regression: the drag fix cloned mouse events with `shiftKey: true`. xterm's
+  SelectionService only ignores shift while an app has mouse reporting ON
+  (`_enabled && shiftKey` → _onIncrementalClick). With reporting OFF the first drag
+  extended a nonexistent selection and selected nothing — breaking the badge, the
+  take-selection button and ⌘⇧L on an idle shell.
+- Fix (a1f49ea): pass the real `shiftKey` through; alt alone is what forces selection.
+- Full suite green on main: 34/34 (23 parity + 7 regressions + 4 drag-select).
+- Not pushed — main is Charles's branch.
