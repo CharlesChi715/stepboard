@@ -64,3 +64,14 @@
 - All 32 checks pass against a throwaway sbtidy stack (:7691/:8011).
 
 - 2026-08-22 · MessageBar textarea: added autoCorrect/autoCapitalize/spellCheck/autoComplete off — kills browser autocorrect in the composer (Claude, on Charles's "u do it").
+
+## 2026-08-23 — selection survives idle mousemove
+
+- Bug: terminal selection highlight vanished on the slightest mouse move after
+  release. Chain: idle mousemove reaches xterm → all-motion reporting (1003)
+  sends a report → CoreService fires onUserInput → SelectionService clears.
+- Fix: forceSelect in useTtyd.js now swallows non-drag mousemove/mouseup over
+  .xterm (they carried zero value — the CLI never gets real clicks anyway).
+- New drag-select check "highlight survives idle mousemove after release";
+  confirmed it FAILs on the unfixed build, then 33/33 pass with the fix.
+- Branch: worktree-selection-survives-mousemove.

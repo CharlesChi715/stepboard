@@ -26,17 +26,21 @@ stepboard/
 - Mentor mode: Claude gives ≤2-line steps; Charles does the work himself and
   Claude only writes code when explicitly asked.
 
-## Current state (2026-08-22)
+## Current state (2026-08-23)
 
 - Stack: `./bin/claude-s` → ttyd+tmux (`sbN`, :768N) + FastAPI panel (:800N).
 - The panel draws the terminal itself with xterm.js (no iframe), so the terminal
   selection is readable — that is what ⌘⇧L needs.
-- UI is React + Vite; 32 headless checks pass (23 parity + 5 regression +
-  4 drag-select), run via `npm test`, non-zero exit on failure.
+- UI is React + Vite; 33 headless checks pass (23 parity + 5 regression +
+  5 drag-select), run via `npm test`, non-zero exit on failure.
 - Drag in the terminal selects text even while Claude Code has mouse reporting
   on: mouse events are re-dispatched as alt-carrying clones (force selection).
   Never force shift too — that makes xterm extend a selection instead of
   starting one. Cost: mouse clicks never reach the CLI app itself.
+- Idle mousemoves over the terminal are swallowed too: with all-motion
+  reporting on, xterm counts each outgoing motion report as user input and
+  clears the selection — so the highlight used to vanish on the first twitch
+  after mouseup.
 - Multi-session: env pair `SB_SESSION`/`SB_TTYD_PORT`; panel asks GET /config.
 - 2026-08-22 tidy-up: `web/` (vanilla page + /legacy route) deleted — history
   has it at `git show 49f09b0:web/index.html`; tests share `tests/harness.mjs`;

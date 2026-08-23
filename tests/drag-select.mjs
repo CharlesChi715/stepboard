@@ -22,6 +22,14 @@ await suite('drag-select', async ({ page, ok }) => {
   const badge = await page.locator('.badge').textContent().catch(() => '')
   ok('drag selects while mouse reporting is ON', /selected: \d+ chars/.test(badge), badge)
 
+  // after release, an idle mousemove used to reach xterm, which reported the
+  // motion to the app and treated its own report as user input → selection gone
+  await page.mouse.move(box.x + 200, box.y + 60, { steps: 8 })
+  await page.waitForTimeout(250)
+  const highlight = await page.evaluate(() =>
+    document.querySelectorAll('.term .xterm-selection div').length)
+  ok('highlight survives idle mousemove after release', highlight > 0, `${highlight} divs`)
+
   await page.fill('.panel textarea', '')
   await drag(20)
   await page.keyboard.press('Meta+Shift+L')
