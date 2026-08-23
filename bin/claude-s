@@ -1,6 +1,7 @@
 #!/bin/zsh
 # claude-s — launch a StepBoard stack: ttyd/tmux terminal + FastAPI panel + browser
 # Runs session 1 by default; if it's already up, offers to start session 2, 3, ...
+# Everything hot-reloads: uvicorn --reload watches serve.py, Vite (:5173) HMRs ui/src.
 cd "$(dirname "$0")/.." || exit 1    # repo root, wherever this clone lives
 
 N=1
@@ -17,7 +18,10 @@ TTYD_PORT=$((7680+N))
 WEB_PORT=$((8000+N))
 SESSION="sb$N"
 
+VITE_PORT=$((5172+N))                # session 1 → 5173, session 2 → 5174, ...
+
 ttyd -W -i lo0 -p $TTYD_PORT tmux new -A -s $SESSION claude &
-SB_SESSION=$SESSION SB_TTYD_PORT=$TTYD_PORT uv run uvicorn serve:app --port $WEB_PORT &
-sleep 1 && open http://127.0.0.1:$WEB_PORT
-wait   # keep script in foreground; Ctrl-C kills this session's ttyd + uvicorn together
+SB_SESSION=$SESSION SB_TTYD_PORT=$TTYD_PORT uv run uvicorn serve:app --port $WEB_PORT --reload &
+(cd ui && SB_PORT=$WEB_PORT npm run dev -- --port $VITE_PORT --strictPort >/dev/null 2>&1) &
+sleep 1 && open http://localhost:$VITE_PORT   # localhost, not 127.0.0.1 — vite may bind IPv6 only
+wait   # keep script in foreground; Ctrl-C kills this session's ttyd + uvicorn + vite together
