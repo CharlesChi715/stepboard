@@ -9,7 +9,7 @@ await suite('parity', async ({ page, ok }) => {
   await page.waitForTimeout(800)
   ok('terminal connects + echoes', (await page.locator('.term').innerText()).includes('PARITY_CHECK_OK'))
 
-  // 2 — selection → badge, button path, key path
+  // 2 — selection → badge, key path
   const box = await page.locator('.term').boundingBox()
   const drag = async y => {
     await page.mouse.move(box.x + 10, box.y + y); await page.mouse.down()
@@ -18,13 +18,6 @@ await suite('parity', async ({ page, ok }) => {
   }
   await drag(20)
   ok('badge reports selection', /selected: \d+ chars/.test(await page.locator('.badge').textContent().catch(() => '')))
-  await page.click('.panel button[title="same as ⌘⇧L"]')
-  await page.waitForTimeout(200)
-  const afterBtn = await page.inputValue('.panel textarea')
-  ok('button fills input', afterBtn.length > 0, JSON.stringify(afterBtn.slice(0, 30)))
-
-  await page.fill('.panel textarea', '')
-  await drag(20)
   await page.keyboard.press('Meta+Shift+L')
   await page.waitForTimeout(200)
   const afterKey = await page.inputValue('.panel textarea')

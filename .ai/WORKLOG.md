@@ -75,3 +75,17 @@
 - New drag-select check "highlight survives idle mousemove after release";
   confirmed it FAILs on the unfixed build, then 33/33 pass with the fix.
 - Branch: worktree-selection-survives-mousemove.
+## 2026-08-22 — drop the "take terminal selection" button
+- Removed the `⤵ take terminal selection` button from the panel (App.jsx);
+  ⌘⇧L keeps working — it calls the same `grab` via the global keydown handler.
+- parity.mjs: dropped the button-path check (23 → 22); npm test 31/31 green.
+- Docs: SUMMARY + tests/README counts updated.
+
+## 2026-08-23 — claude-s always launches with hot reload
+- bin/claude-s: uvicorn gets `--reload`, vite dev server starts per session
+  (:5172+N, --strictPort), browser opens vite (localhost, not 127.0.0.1 —
+  vite may bind IPv6 only).
+- Verified on a throwaway stack (7692/8012/5199): proxy /config OK, src edit
+  visible in served module ~1s, serve.py touch restarts uvicorn, parity 22/22
+  through vite.
+- README quick start + ports table, SUMMARY stack line updated.

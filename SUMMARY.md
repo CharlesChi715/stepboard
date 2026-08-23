@@ -11,7 +11,7 @@ stepboard/
 │       ├── components/ # MessageBar · Constraints · Prompts · History · Badge
 │       ├── hooks/      # useTtyd (xterm.js + ttyd protocol) · useHistory (localStorage)
 │       └── lib/        # compose.js — message + constraints → text sent to Claude
-├── bin/claude-s        # launcher — session N: ttyd :768N + uvicorn :800N + browser
+├── bin/claude-s        # launcher — session N: ttyd :768N + uvicorn :800N + vite :5172+N
 ├── tests/              # headless checks: harness · parity · regressions · drag-select
 ├── package.json        # test deps (Playwright) + `npm test`
 ├── pyproject.toml      # deps: fastapi, uvicorn (run via uv)
@@ -28,10 +28,13 @@ stepboard/
 
 ## Current state (2026-08-23)
 
-- Stack: `./bin/claude-s` → ttyd+tmux (`sbN`, :768N) + FastAPI panel (:800N).
+- Stack: `./bin/claude-s` → ttyd+tmux (`sbN`, :768N) + FastAPI (:800N, `--reload`)
+  + vite dev server (:5172+N, HMR) — browser opens vite; everything hot-reloads.
 - The panel draws the terminal itself with xterm.js (no iframe), so the terminal
   selection is readable — that is what ⌘⇧L needs.
-- UI is React + Vite; 33 headless checks pass (23 parity + 5 regression +
+- Selection → input is keyboard-only: the "take terminal selection" button is
+  gone, ⌘⇧L remains.
+- UI is React + Vite; 32 headless checks pass (22 parity + 5 regression +
   5 drag-select), run via `npm test`, non-zero exit on failure.
 - Drag in the terminal selects text even while Claude Code has mouse reporting
   on: mouse events are re-dispatched as alt-carrying clones (force selection).

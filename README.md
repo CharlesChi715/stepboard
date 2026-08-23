@@ -7,21 +7,26 @@ before the next is added. (The previous full version lives in git @ 2a92f3f.)
 ## Quick start
 
 ```sh
-cd ui && npm install && npm run build   # build the panel (first time only)
+cd ui && npm install && npm run build   # panel deps + a dist for serve.py (first time only)
 ./bin/claude-s                          # terminal + panel + browser tab, one command
                                         # run again → session 2, 3, … own ports each
 ```
+
+The launcher opens the Vite dev server (:5173), so **everything hot-reloads**:
+edit `ui/src` → the open tab patches itself (HMR); edit `serve.py` → uvicorn
+restarts itself (`--reload`). No rebuild while developing — `npm run build` only
+matters when you want `:800N` (the dist copy uvicorn serves) refreshed.
 
 Manual equivalent for session 1:
 
 ```sh
 ttyd -W -i lo0 -p 7681 tmux new -A -s sb1 claude
-SB_SESSION=sb1 SB_TTYD_PORT=7681 uv run uvicorn serve:app --port 8001
+SB_SESSION=sb1 SB_TTYD_PORT=7681 uv run uvicorn serve:app --port 8001 --reload
+cd ui && SB_PORT=8001 npm run dev       # :5173, HMR, proxies /config + /send
 ```
 
 Requires `brew install ttyd tmux`, the `claude` CLI, `uv` (pulls FastAPI +
-uvicorn), and Node. While editing the UI, `cd ui && SB_PORT=8001 npm run dev`
-serves it on :5173 with hot reload and proxies `/config` + `/send` through.
+uvicorn), and Node.
 
 ## How it works
 
@@ -40,11 +45,14 @@ send-keys`). The tmux session survives reloads and restarts: `tmux attach -t sb1
 
 Each `claude-s` run adds an independent session — its own tmux, ttyd, and panel:
 
-| session | tmux | ttyd (view) | panel (typing) |
-|--------:|------|-------------|----------------|
-|       1 | sb1  | 7681        | 8001           |
-|       2 | sb2  | 7682        | 8002           |
-|       N | sbN  | 7680+N      | 8000+N         |
+| session | tmux | ttyd (view) | API + dist (uvicorn) | dev panel (vite) |
+|--------:|------|-------------|----------------------|------------------|
+|       1 | sb1  | 7681        | 8001                 | 5173             |
+|       2 | sb2  | 7682        | 8002                 | 5174             |
+|       N | sbN  | 7680+N      | 8000+N               | 5172+N           |
+
+The browser opens the vite column; the uvicorn column is the API behind it
+(and still serves the last-built `dist` if you ever want the no-Node panel).
 
 ## Keys
 
