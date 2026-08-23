@@ -2,7 +2,7 @@
 # claude-s — launch a StepBoard stack: ttyd/tmux terminal + FastAPI panel + browser
 # Runs session 1 by default; if it's already up, offers to start session 2, 3, ...
 # Everything hot-reloads: uvicorn --reload watches serve.py, Vite (:5173) HMRs ui/src.
-cd "$(dirname "$0")/.." || exit 1    # repo root, wherever this clone lives
+cd "${0:A:h}/.." || exit 1    # repo root — :A resolves symlinks, so a PATH symlink works
 
 N=1
 while lsof -nP -iTCP:$((7680+N)) -sTCP:LISTEN >/dev/null 2>&1; do
