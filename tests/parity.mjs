@@ -30,7 +30,7 @@ await suite('parity', async ({ page, ok }) => {
   await page.keyboard.press('Enter')
   await page.waitForTimeout(300)
   ok('Enter sends', sent.length === 1, JSON.stringify(sent[0]?.text))
-  ok('chart clause on by default', /ASCII diagram chart table/.test(sent[0]?.text || ''))
+  ok('chart clause on by default', /ASCII diagram\/chart\/table/.test(sent[0]?.text || ''))
   ok('input cleared after send', (await page.inputValue('.panel textarea')) === '')
 
   // 4 — length unit default + clause
