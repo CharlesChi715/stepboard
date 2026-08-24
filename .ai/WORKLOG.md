@@ -89,3 +89,29 @@
   visible in served module ~1s, serve.py touch restarts uvicorn, parity 22/22
   through vite.
 - README quick start + ports table, SUMMARY stack line updated.
+
+## 2026-08-24 — swap the stylesheet for Tailwind v4
+- `ui/src/styles.css` (41 hand-written lines) → `@import "tailwindcss"` + an
+  `@theme` palette; every rule now lives on an element as utilities.
+- Added `@tailwindcss/vite` to vite.config.js; new `ui/src/lib/ui.js` holds the
+  shared class strings (BTN, FIELDSET, TERM, …).
+- Preflight ON: it zeroes margin/padding/border globally and makes buttons and
+  inputs transparent, so native control chrome is rebuilt in ui.js. Read the
+  shipped `node_modules/tailwindcss/preflight.css` rather than trusting docs.
+- Same-kind utilities on one element are resolved by STYLESHEET order, not
+  className order, so `BTN`/`BTN_ON` and the fieldset frame colours are
+  mutually exclusive strings instead of appended ones.
+- xterm survived: `xterm.css` is imported unlayered (outranks `@layer base`),
+  and no unlayered xterm rule targets `.xterm-screen`'s cursor directly, so the
+  layered `[&_.xterm-screen]:cursor-text` still wins — "cursor stays an I-beam"
+  and both drag-select checks pass.
+- parity.mjs asserted the edits fieldset's class attribute EQUALS 'danger'/'ok';
+  that cannot hold beside styling classes, so it now matches the marker as a
+  whole word. Intent unchanged.
+- Separately: the "chart clause on by default" check had been failing since
+  bb00f20 — the clause gained slashes ("ASCII diagram/chart/table") but the
+  regex lost them. Fixed in its own commit. 32/32 green after.
+- Verified against the built bundle on a throwaway stack (7691/8011), plus a
+  before/after screenshot of the panel. Deltas are only what preflight forces:
+  slightly roomier line-height and flat rather than native button chrome.
+- Branch: worktree-tailwind-migration.

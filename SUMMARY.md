@@ -5,12 +5,13 @@
 ```
 stepboard/
 ├── serve.py            # FastAPI: GET /config (pairing), POST /send → tmux, serves ui/dist
-├── ui/                 # React + Vite panel (npm run dev :5173 · npm run build → ui/dist)
+├── ui/                 # React + Vite + Tailwind v4 (npm run dev :5173 · build → ui/dist)
 │   └── src/
 │       ├── App.jsx     # state, composer, global shortcuts
+│       ├── styles.css  # Tailwind import + @theme palette — no hand-written rules
 │       ├── components/ # MessageBar · Constraints · Prompts · History · Badge
 │       ├── hooks/      # useTtyd (xterm.js + ttyd protocol) · useHistory (localStorage)
-│       └── lib/        # compose.js — message + constraints → text sent to Claude
+│       └── lib/        # compose.js — message + constraints → text · ui.js — class strings
 ├── bin/claude-s        # launcher — session N: ttyd :768N + uvicorn :800N + vite :5172+N
 ├── tests/              # headless checks: harness · parity · regressions · drag-select
 ├── package.json        # test deps (Playwright) + `npm test`
@@ -26,16 +27,27 @@ stepboard/
 - Mentor mode: Claude gives ≤2-line steps; Charles does the work himself and
   Claude only writes code when explicitly asked.
 
-## Current state (2026-08-23)
+## Current state (2026-08-24)
 
+- Styling is Tailwind v4 (`@tailwindcss/vite`). `styles.css` is just the Tailwind
+  import + an `@theme` palette (`edge`, `muted`, `chrome*`, `armed*`, `danger`,
+  `good`); shared class strings live in `ui/src/lib/ui.js`.
+- Preflight is ON, so it strips native button/input chrome and `ui.js` rebuilds
+  it. Same-kind utilities on one element are resolved by stylesheet order, not
+  className order — so `BTN`/`BTN_ON` and the fieldset frames are mutually
+  exclusive, never appended.
+- `xterm.css` is imported unlayered on purpose: preflight sits in `@layer base`,
+  and unlayered rules outrank every layered one. Rules reaching into xterm's own
+  DOM survive as descendant variants on the host div (`[&_.xterm]:h-full`).
+- `.prompts` no longer needs `!important` — a fieldset carries its own classes.
 - Stack: `./bin/claude-s` → ttyd+tmux (`sbN`, :768N) + FastAPI (:800N, `--reload`)
   + vite dev server (:5172+N, HMR) — browser opens vite; everything hot-reloads.
 - The panel draws the terminal itself with xterm.js (no iframe), so the terminal
   selection is readable — that is what ⌘⇧L needs.
 - Selection → input is keyboard-only: the "take terminal selection" button is
   gone, ⌘⇧L remains.
-- UI is React + Vite; 32 headless checks pass (22 parity + 5 regression +
-  5 drag-select), run via `npm test`, non-zero exit on failure.
+- UI is React + Vite + Tailwind; 32 headless checks pass (22 parity + 5
+  regression + 5 drag-select), run via `npm test`, non-zero exit on failure.
 - Drag in the terminal selects text even while Claude Code has mouse reporting
   on: mouse events are re-dispatched as alt-carrying clones (force selection).
   Never force shift too — that makes xterm extend a selection instead of
