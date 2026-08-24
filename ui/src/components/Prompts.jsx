@@ -1,6 +1,8 @@
 // Pre-built prompts — add yours here as {label, text}.
 export const PROMPTS = [
   { label: 'pro', text: "What's the pro and professional way to do this?" },
+  { label: 'socratic', text: "Use socratic way." },
+  { label: 'first principles', text: "Use first principles." },
 ]
 
 // Armed prompts are appended at SEND time, not typed into the box.
