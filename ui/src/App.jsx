@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTtyd, isGrabKey } from './hooks/useTtyd.js'
 import { useHistory } from './hooks/useHistory.js'
 import { compose, send } from './lib/compose.js'
+import { BTN, BTN_BIG, TERM } from './lib/ui.js'
 import MessageBar from './components/MessageBar.jsx'
 import Prompts, { PROMPTS } from './components/Prompts.jsx'
 import History from './components/History.jsx'
@@ -82,8 +83,10 @@ export default function App() {
 
   return (
     <>
-      <div className="term" ref={hostRef} />
-      <div className="panel">
+      <div className={TERM} ref={hostRef} />
+      {/* overflow-y matters: without it, `mt-auto` on the last button pushes the
+          top of the column off-screen once the panel outgrows the window */}
+      <div className="panel flex min-h-0 w-[230px] flex-col gap-2.5 overflow-y-auto p-2.5">
         <MessageBar value={msg} setValue={setMsg} onSend={() => sendComposed()}
                     hist={hist} onBlurSave={v => save(v, 'draft')} inputRef={inputRef} />
         <Length unit={unit} n={n} onUnit={setUnit} onN={setN} />
@@ -93,11 +96,11 @@ export default function App() {
                  onToggle={label => setArmed(a =>
                    a.includes(label) ? a.filter(x => x !== label) : [...a, label])} />
 
-        <button className="send" onClick={() => sendComposed()}>Send</button>
-        <button onClick={() => setShowHist(v => !v)}>history</button>
+        <button className={`send ${BTN_BIG}`} onClick={() => sendComposed()}>Send</button>
+        <button className={BTN} onClick={() => setShowHist(v => !v)}>history</button>
         {showHist && <History hist={hist}
                               onPick={t => { setMsg(t); inputRef.current?.focus() }} />}
-        <button className="summarize"
+        <button className={`summarize ${BTN} mt-auto`}
                 onClick={() => sendComposed('Summarize this session.')}>summarize</button>
       </div>
       <Badge note={note} />

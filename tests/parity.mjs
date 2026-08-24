@@ -30,7 +30,7 @@ await suite('parity', async ({ page, ok }) => {
   await page.keyboard.press('Enter')
   await page.waitForTimeout(300)
   ok('Enter sends', sent.length === 1, JSON.stringify(sent[0]?.text))
-  ok('chart clause on by default', /ASCII diagram chart table/.test(sent[0]?.text || ''))
+  ok('chart clause on by default', /ASCII diagram\/chart\/table/.test(sent[0]?.text || ''))
   ok('input cleared after send', (await page.inputValue('.panel textarea')) === '')
 
   // 4 — length unit default + clause
@@ -45,13 +45,15 @@ await suite('parity', async ({ page, ok }) => {
   // 5 — edits box: 0 = read-only + red frame, 20 = capped + green frame
   const edits = page.locator('.panel fieldset').nth(2)
   const editsNum = edits.locator('input[type=number]')
+  // the mood is one marker class among the styling ones, so match a whole word
+  const mood = async m => (await edits.getAttribute('class') || '').split(/\s+/).includes(m)
   await editsNum.fill('0'); await page.waitForTimeout(150)
-  ok('edits red at 0', (await edits.getAttribute('class')) === 'danger')
+  ok('edits red at 0', await mood('danger'))
   sent.length = 0
   await page.fill('.panel textarea', 'edit test'); await page.keyboard.press('Enter'); await page.waitForTimeout(300)
   ok('read-only clause', /Do not edit any files/.test(sent[0]?.text || ''))
   await editsNum.fill('20'); await page.waitForTimeout(150)
-  ok('edits green at 20', (await edits.getAttribute('class')) === 'ok')
+  ok('edits green at 20', await mood('ok'))
   sent.length = 0
   await page.fill('.panel textarea', 'edit test 2'); await page.keyboard.press('Enter'); await page.waitForTimeout(300)
   ok('edit-cap clause', /change at most 20 lines at a time/.test(sent[0]?.text || ''))

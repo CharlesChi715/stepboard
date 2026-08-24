@@ -27,6 +27,7 @@ export default function MessageBar({ value, setValue, onSend, hist, onBlurSave, 
   return (
     <textarea
       ref={inputRef}
+      className="min-h-[70px] touch-manipulation rounded border border-edge bg-white p-1.5"
       value={value}
       autoCorrect="off"
       autoCapitalize="off"
