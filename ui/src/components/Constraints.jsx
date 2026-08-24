@@ -17,10 +17,11 @@ export function Length({ unit, n, onUnit, onN }) {
       <legend>length</legend>
       <label>
         <input type="radio" name="unit" value="auto"
-               checked={unit === 'auto'} onChange={() => pick('auto')} /> auto (Claude picks)
+               checked={unit === 'auto'} onChange={() => pick('auto')} /> auto
       </label>
       <label>at most <input type="number" min="1" ref={nRef}
-                            value={n} onChange={e => onN(e.target.value)} /></label>
+                            value={n} onChange={e => onN(e.target.value)} 
+                            onFocus={() => { if (unit === 'auto') pick('words') }} /></label>
       <label>
         <input type="radio" name="unit" value="sentences"
                checked={unit === 'sentences'} onChange={() => pick('sentences')} /> sentences
@@ -39,7 +40,7 @@ export function Format({ chart, onChart }) {
       <legend>format</legend>
       <label>
         <input type="checkbox" checked={chart}
-               onChange={e => onChart(e.target.checked)} /> ASCII chart/table ok
+               onChange={e => onChart(e.target.checked)} /> ASCII diagram/chart/table
       </label>
     </fieldset>
   )
