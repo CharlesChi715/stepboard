@@ -20,7 +20,7 @@ export function Length({ unit, n, onUnit, onN }) {
                checked={unit === 'auto'} onChange={() => pick('auto')} /> auto
       </label>
       <label>at most <input type="number" min="1" ref={nRef}
-                            value={n} onChange={e => onN(e.target.value)} 
+                            value={n} onChange={e => { onN(e.target.value); e.target.value.length > 0 && onUnit(e.target.value.length === 1 ? 'sentences' : 'words') }}
                             onFocus={() => { if (unit === 'auto') pick('words') }} /></label>
       <label>
         <input type="radio" name="unit" value="sentences"

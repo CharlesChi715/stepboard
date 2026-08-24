@@ -13,9 +13,7 @@
     S2: Reply in at most {n} words.
     S3: Use ASCII diagram/chart/table where it helps.
     S4: When editing files, change at most {n} lines at a time, then pause so I can review.
-  - (a) only one length constraint active at a time (recommended), (b) allow both and let claude reconcile, (c) last-edited wins. Your call.
-  - (b). The empty rule: a blank number should mean this section appends nothing.
-
+    
 ## 2. ASCII Workflow map
 
 ```
