@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 // Two ways to run the panel:
 //   npm run dev    → Vite on :5173, /config and /send proxied to FastAPI
@@ -8,7 +9,7 @@ import react from '@vitejs/plugin-react'
 const API = `http://127.0.0.1:${process.env.SB_PORT || 8001}`
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
     proxy: { '/config': API, '/send': API },
