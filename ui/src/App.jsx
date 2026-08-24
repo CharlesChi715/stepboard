@@ -86,7 +86,8 @@ export default function App() {
       <div className={TERM} ref={hostRef} />
       {/* overflow-y matters: without it, `mt-auto` on the last button pushes the
           top of the column off-screen once the panel outgrows the window */}
-      <div className="panel flex min-h-0 w-[230px] flex-col gap-2.5 overflow-y-auto p-2.5">
+      <div className="panel flex min-h-0 w-60 flex-col gap-3 overflow-y-auto border-l
+                      border-edge-soft bg-bg p-3 text-[13px]">
         <MessageBar value={msg} setValue={setMsg} onSend={() => sendComposed()}
                     hist={hist} onBlurSave={v => save(v, 'draft')} inputRef={inputRef} />
         <Length unit={unit} n={n} onUnit={setUnit} onN={setN} />

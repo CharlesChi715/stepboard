@@ -17,7 +17,9 @@ export default function Prompts({ armed, onToggle }) {
           <button className={armed.includes(p.label) ? BTN_ON : BTN}
                   onClick={() => onToggle(p.label)}>{p.label}</button>
           {armed.includes(p.label) &&
-            <div className="snippet max-w-[180px] text-[11px] text-muted">{p.text}</div>}
+            <div className="snippet max-w-[180px] text-[11px] leading-snug text-muted">
+              {p.text}
+            </div>}
         </div>
       ))}
     </fieldset>

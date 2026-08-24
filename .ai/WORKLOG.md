@@ -115,3 +115,24 @@
   before/after screenshot of the panel. Deltas are only what preflight forces:
   slightly roomier line-height and flat rather than native button chrome.
 - Branch: worktree-tailwind-migration.
+
+## 2026-08-24 — dark panel, matched to the terminal
+- Charles picked "dark, matched to terminal" over refined-light / auto. The
+  white panel beside a hardcoded-#000 terminal was the biggest thing hurting
+  the look; the terminal can't meet you halfway, so the panel moved.
+- New `@theme` palette in styles.css: surfaces bg/card/control(+hi/on), lines
+  edge/edge-soft, text ink/muted, state armed/danger/good. The old light values
+  (#2b44c4/#c0392b/#1e7a40) all go muddy below ~#1a1a1a, so each was lifted.
+- `scheme-dark` on <body> is the load-bearing trick: it darkens the NATIVE
+  controls (radio/checkbox ticks, number spinners, scrollbar) that Tailwind
+  can't reach. `accent-armed` tints the ticks. Verified `.scheme-dark` and
+  `accent-color` both land in the built CSS.
+- Three fixes independent of colour: Send is now the only solid-accent control
+  (it was visually identical to history/summarize despite being the primary
+  action); focus rings are explicit since the native ring vanishes on dark;
+  legends are uppercase micro-labels rather than prose.
+- Contrast checked numerically, not by eye — all 8 text/bg pairs clear WCAG AA,
+  lowest 4.99:1 (armed on its own tinted chip), highest 16.19:1 (ink on panel).
+- Opacity modifiers on custom theme colours (`bg-armed/15`, `border-danger/60`)
+  work in v4.3.3 — emitted as a hex-alpha rule plus a color-mix override.
+- 32/32 checks pass. Branch: worktree-dark-restyle.

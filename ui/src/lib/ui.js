@@ -5,33 +5,53 @@
 // dozen utilities at each call site.
 //
 // Two utilities of the same kind on one element (`border-edge border-danger`,
-// `px-2 p-3`) are decided by stylesheet order, NOT className order. So every
-// pairing below is mutually exclusive rather than additive.
+// `text-muted text-danger`, `px-2 p-3`) are decided by stylesheet order, NOT
+// className order. So every pairing below is mutually exclusive, never additive.
 
-const CHROME =
-  'cursor-pointer touch-manipulation rounded border border-edge bg-chrome ' +
-  'hover:bg-chrome-hover active:bg-chrome-active'
+// Everything clickable shares this: chrome, motion, and a focus ring. The ring
+// matters more here than on the old light theme — the native one is invisible
+// against a near-black panel.
+const CTRL =
+  'cursor-pointer touch-manipulation rounded-md border border-edge bg-control text-ink ' +
+  'transition-colors hover:bg-control-hi active:bg-control-on ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
 
-export const BTN = `${CHROME} px-2 py-1`
-export const BTN_BIG = `${CHROME} p-3 text-base font-semibold`
+export const BTN = `${CTRL} px-2.5 py-1.5`
 
-// An armed prompt — a whole alternative to BTN, never appended to it.
+// Send is the panel's primary action but used to look exactly like `history`
+// and `summarize`. It is the only solid-accent control on the page.
+export const BTN_BIG =
+  'cursor-pointer touch-manipulation rounded-lg border border-armed bg-armed px-3 py-3 ' +
+  'text-base font-semibold text-bg transition-colors hover:bg-armed-hi active:bg-armed ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+
+// An armed prompt — a whole alternative to BTN, never appended to it. Tinted
+// rather than solid, so it reads as "on" without competing with Send.
 export const BTN_ON =
-  'cursor-pointer touch-manipulation rounded border border-armed bg-armed px-2 py-1 ' +
-  'text-white hover:bg-armed-hover'
+  'cursor-pointer touch-manipulation rounded-md border border-armed bg-armed/15 px-2.5 py-1.5 ' +
+  'text-armed transition-colors hover:bg-armed/25 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
 
-const FIELD = 'rounded-lg border px-2.5 pt-1 pb-2'        // the frame, minus its colour
-export const FIELDSET = `${FIELD} flex flex-col gap-1.5 border-edge`
+const FIELD = 'rounded-lg border bg-card px-3 pt-1.5 pb-3'   // the frame, minus its colour
+export const FIELDSET = `${FIELD} flex flex-col gap-2 border-edge-soft`
 // prompts wrap into rows — its own direction, and no `!important` to win it
-export const FIELDSET_ROW = `${FIELD} flex flex-row flex-wrap gap-2 border-edge`
+export const FIELDSET_ROW = `${FIELD} flex flex-row flex-wrap gap-2 border-edge-soft`
 // edits picks its own frame colour, so it starts from the uncoloured base
-export const FIELDSET_BARE = `${FIELD} flex flex-col gap-1.5`
+export const FIELDSET_BARE = `${FIELD} flex flex-col gap-2`
 
-export const LEGEND = 'px-1'
+// A legend is a section label, not prose — small, spaced, and quiet.
+const LEGEND_BASE = 'px-1.5 text-[10px] font-medium tracking-[0.08em] uppercase'
+export const LEGEND = `${LEGEND_BASE} text-muted`
+export const LEGEND_BARE = LEGEND_BASE                       // edits tints its own
+
+// Labels stay inline flow, not flex: "at most [42]" and "≤ [20] lines per step"
+// mix text and inputs mid-sentence and must wrap like a sentence.
 export const LABEL = 'touch-manipulation'
 export const NUM =
-  'mx-1 w-14 rounded border border-edge bg-white px-1 py-0.5 touch-manipulation'
-export const TICK = 'mr-1 touch-manipulation'             // radio + checkbox
+  'mx-1.5 w-14 rounded-md border border-edge bg-control px-1.5 py-1 text-ink touch-manipulation ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+// accent-armed tints the native tick itself; without it macOS draws its own blue
+export const TICK = 'mr-2 accent-armed align-middle touch-manipulation'
 
 // The terminal host. xterm.js builds its own DOM inside, so those elements are
 // only reachable with descendant variants from out here.

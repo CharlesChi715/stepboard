@@ -6,7 +6,9 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>My Claude Panel</title>
   </head>
-  <body class="h-screen text-sm touch-manipulation">
+  <!-- scheme-dark is what makes the NATIVE bits dark too: radio/checkbox ticks,
+       number-input spinners, and the panel's scrollbar. -->
+  <body class="h-screen bg-bg text-sm text-ink scheme-dark touch-manipulation">
     <div id="root" class="flex h-screen"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

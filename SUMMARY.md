@@ -30,8 +30,17 @@ stepboard/
 ## Current state (2026-08-24)
 
 - Styling is Tailwind v4 (`@tailwindcss/vite`). `styles.css` is just the Tailwind
-  import + an `@theme` palette (`edge`, `muted`, `chrome*`, `armed*`, `danger`,
-  `good`); shared class strings live in `ui/src/lib/ui.js`.
+  import + an `@theme` palette; shared class strings live in `ui/src/lib/ui.js`.
+- The panel is dark, sitting a hair above the terminal's hardcoded #000 so the
+  window reads as one tool. Palette: `bg`/`card`/`control*` surfaces, `edge*`
+  lines, `ink`/`muted` text, `armed`/`danger`/`good` state. State colours are
+  lifted from the old light values, which went muddy on a near-black ground.
+- `scheme-dark` on `<body>` is what darkens the NATIVE bits — radio/checkbox
+  ticks, number spinners, scrollbars; `accent-armed` tints the ticks themselves.
+- Send is the only solid-accent control (it is the primary action); an armed
+  prompt is tinted, so the two never compete. Focus rings are explicit
+  (`focus-visible:ring`) because the native ring is invisible on dark.
+- Every text/background pair clears WCAG AA (lowest is armed-on-tinted, 4.99:1).
 - Preflight is ON, so it strips native button/input chrome and `ui.js` rebuilds
   it. Same-kind utilities on one element are resolved by stylesheet order, not
   className order — so `BTN`/`BTN_ON` and the fieldset frames are mutually
