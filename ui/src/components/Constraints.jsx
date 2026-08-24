@@ -49,7 +49,7 @@ export function Format({ chart, onChart }) {
 
 // frame colour = the mode you are in: red 0/no-edits, green capped, grey off
 const MOOD = {
-  '': { frame: 'border-edge-soft', legend: 'text-muted' },
+  '': { frame: 'border-transparent', legend: 'text-muted' },
   danger: { frame: 'border-danger/60', legend: 'text-danger' },
   ok: { frame: 'border-good/60', legend: 'text-good' },
 }

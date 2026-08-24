@@ -32,11 +32,15 @@ export const BTN_ON =
   'text-armed transition-colors hover:bg-armed/25 ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
 
-const FIELD = 'rounded-lg border bg-card px-3 pt-1.5 pb-3'   // the frame, minus its colour
-export const FIELDSET = `${FIELD} flex flex-col gap-2 border-edge-soft`
+// A fieldset is a card, not a box: the raised background already separates it
+// from the panel, so an outline on top of that is a second edge doing the same
+// job. Only `edits` draws one, because there it carries meaning (the mood).
+const FIELD = 'rounded-lg border bg-card px-3 pt-2 pb-3'   // the frame, minus its colour
+export const FIELDSET = `${FIELD} flex flex-col gap-2 border-transparent`
 // prompts wrap into rows — its own direction, and no `!important` to win it
-export const FIELDSET_ROW = `${FIELD} flex flex-row flex-wrap gap-2 border-edge-soft`
-// edits picks its own frame colour, so it starts from the uncoloured base
+export const FIELDSET_ROW = `${FIELD} flex flex-row flex-wrap gap-2 border-transparent`
+// edits supplies its own border colour every time, transparent included, so the
+// mood frame appears in place — the width is always there, nothing reflows
 export const FIELDSET_BARE = `${FIELD} flex flex-col gap-2`
 
 // A legend is a section label, not prose — small, spaced, and quiet.
