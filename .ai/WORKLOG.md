@@ -204,3 +204,18 @@
   docs conflicted — both were append-at-the-end collisions, no code overlap.
   34/34 green after the merge, so ⌘J survives the hover-preview rework.
 - Branch: worktree-cmd-j-focus-cli.
+
+## 2026-08-25 — ⌘⇧L clears the highlight it consumed
+
+- Charles: once the text is in the input bar, the left pane should not still
+  look selected. Fix is `term.clearSelection()` — but not on its own.
+- `lastSel` (useTtyd.js:13) remembers the selection so a focus-loss clear does
+  not disarm ⌘⇧L. Clearing only the highlight would leave it armed: nothing
+  looks selected, yet a second ⌘⇧L pastes the same text again. So the take
+  drops both — highlight and remembered copy — inside `takeSelection`, which
+  is now genuinely a consume.
+- No badge flicker: clearSelection() fires onSelectionChange with '', which
+  the existing `if (s)` guard already ignores.
+- Two new drag-select checks: highlight is 0 divs after the grab, and a second
+  ⌘⇧L leaves the input empty. 36/36 green (24 parity + 5 regression + 7 drag).
+- Branch: worktree-cmd-j-focus-cli.

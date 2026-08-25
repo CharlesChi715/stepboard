@@ -37,6 +37,16 @@ await suite('drag-select', async ({ page, ok }) => {
   const val = await page.inputValue('.panel textarea')
   ok('⌘⇧L grabs that selection', val.length > 0, JSON.stringify(val.slice(0, 40)))
 
+  // a take is a consume: the highlight goes, and lastSel goes with it, so a
+  // second press cannot silently paste the same text with nothing selected
+  const leftover = await page.evaluate(() =>
+    document.querySelectorAll('.term .xterm-selection div').length)
+  ok('⌘⇧L clears the highlight', leftover === 0, `${leftover} divs`)
+  await page.fill('.panel textarea', '')
+  await page.keyboard.press('Meta+Shift+L')
+  await page.waitForTimeout(250)
+  ok('a second ⌘⇧L pastes nothing', (await page.inputValue('.panel textarea')) === '')
+
   const cursor = await page.evaluate(() => {
     const el = document.querySelector('.term .xterm-screen')
     return el ? getComputedStyle(el).cursor : 'no-el'

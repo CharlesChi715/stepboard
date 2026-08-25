@@ -120,6 +120,13 @@ export function useTtyd({ onSelection } = {}) {
   const takeSelection = useCallback(() => {
     const term = termRef.current
     const picked = ((term && term.getSelection()) || lastSel.current || '').replace(/\s+$/, '')
+    // A take is a consume: the text now lives in the input bar, so drop BOTH the
+    // highlight and the remembered copy. Clearing only the highlight would leave
+    // lastSel armed — a second ⌘⇧L would paste it again with nothing selected.
+    // clearSelection() fires onSelectionChange with '', which the `if (s)` above
+    // already ignores, so the badge does not flicker.
+    term?.clearSelection()
+    lastSel.current = ''
     return picked
   }, [])
 
