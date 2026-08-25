@@ -27,7 +27,7 @@ export default function MessageBar({ value, setValue, onSend, hist, onBlurSave, 
   return (
     <textarea
       ref={inputRef}
-      className="min-h-[84px] touch-manipulation rounded-lg border border-edge bg-control px-2.5
+      className="min-h-[150px] touch-manipulation rounded-lg border border-edge bg-control px-2.5
                  py-2 text-ink placeholder:text-muted focus-visible:outline-none
                  focus-visible:ring-2 focus-visible:ring-armed/60"
       value={value}
