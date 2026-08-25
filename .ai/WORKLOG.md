@@ -158,3 +158,27 @@
   Parity 22 → 23 checks, suite 32 → 33. tests/README drag-select count was also
   wrong (said 4, is 5) — corrected.
 - Branch: worktree-dark-restyle.
+
+## 2026-08-25 — snippet becomes a real popup; the white strip explained
+- Snippet preview is now absolutely positioned, so opening it never pushes a
+  button around. Verified by measuring: .send y and .prompts height are
+  byte-identical across hover, and the popup stays inside the panel's box.
+- `relative` sits on the FIELDSET, not the button wrapper. That makes the card
+  the containing block, so the popup spans the card's width instead of hanging
+  off a button and being clipped — .panel is overflow-y-auto, which makes
+  overflow-x non-visible too, so anything overhanging gets cut.
+- It opens UPWARD (bottom-full). Downward landed squarely on the bright blue
+  Send button and read as a rendering bug; upward it floats over the dark edits
+  card and reads as a popup.
+- The white strip between the panes: xterm.css sets `overflow-y: scroll` (not
+  auto) on .xterm-viewport, and xterm's Viewport computes
+  `scrollBarWidth = viewportElement.offsetWidth - scrollArea.offsetWidth || 15`
+  — so when the browser reports 0 (macOS overlay scrollbars) it STILL reserves
+  15px, which FitAddon subtracts. Measured: .xterm-screen ends at 1023, the
+  viewport at 1040. On a Mac set to "show scroll bars: always" the OS paints
+  that gutter light → the white strip.
+- Fix: style .xterm-viewport::-webkit-scrollbar via arbitrary variants on TERM
+  (black track, edge-coloured thumb) so Chromium draws ours. NOT reproducible
+  headlessly — headless macOS always reports overlay scrollbars — so this one
+  needs Charles to confirm on his screen.
+- 33/33 pass. Branch: worktree-dark-restyle.

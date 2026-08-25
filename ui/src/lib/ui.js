@@ -62,9 +62,18 @@ export const TICK = 'mr-2 accent-armed align-middle touch-manipulation'
 //   cursor-text — I-beam, never the drag-a-thing circle: xterm switches to
 //   `default` while an app has mouse reporting on, and macOS shows "no drop"
 //   for a native drag.
+//   The scrollbar rules earn their keep: xterm.css sets `overflow-y: scroll`
+//   (not auto) on .xterm-viewport, so a ~15px gutter is ALWAYS reserved at the
+//   terminal's right edge. On a Mac set to "show scroll bars: always" that
+//   gutter is painted by the OS as a light bar — a white strip between the two
+//   panes. Styling ::-webkit-scrollbar makes Chromium draw our own instead.
 export const TERM =
   'term min-w-0 flex-1 overflow-hidden bg-black py-1 pl-1.5 ' +
   '[&_.xterm]:h-full ' +
+  '[&_.xterm-viewport::-webkit-scrollbar]:w-2.5 ' +
+  '[&_.xterm-viewport::-webkit-scrollbar]:bg-black ' +
+  '[&_.xterm-viewport::-webkit-scrollbar-thumb]:rounded-full ' +
+  '[&_.xterm-viewport::-webkit-scrollbar-thumb]:bg-edge ' +
   '[&_.xterm-screen]:cursor-text [&_.xterm-rows]:cursor-text ' +
   '[&_canvas]:select-none [&_.xterm-rows]:select-none ' +
   '[&_canvas]:[-webkit-user-drag:none] [&_.xterm-rows]:[-webkit-user-drag:none]'

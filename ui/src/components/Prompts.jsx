@@ -10,21 +10,25 @@ export const PROMPTS = [
 // Armed prompts are appended at SEND time, not typed into the box.
 export default function Prompts({ armed, onToggle }) {
   return (
-    <fieldset className={`prompts ${FIELDSET_ROW}`}>
+    // `relative` here, and NOT on the wrapper below, is deliberate: it makes the
+    // fieldset the popup's containing block, so the popup spans this card's width
+    // instead of hanging off a button and getting clipped by the panel's
+    // overflow-y-auto (which makes overflow-x non-visible too).
+    <fieldset className={`prompts ${FIELDSET_ROW} relative`}>
       <legend className={LEGEND}>prompts</legend>
       {PROMPTS.map(p => (
-        // items-start: without it the button stretches to the snippet's width
-        // when the preview opens, so the thing under your cursor resizes.
-        <div className="group flex flex-col items-start gap-0.5" key={p.label}>
+        <div className="group" key={p.label}>
           <button className={armed.includes(p.label) ? BTN_ON : BTN}
                   onClick={() => onToggle(p.label)}>{p.label}</button>
-          {/* A preview of what gets appended, not a status line — armed state is
-              the button's own tint. focus-VISIBLE, not focus-within: clicking a
-              prompt focuses it, and focus-within would then pin its snippet open
-              for good. focus-visible fires for Tab and stays quiet for the mouse.
-              It has to be group-HAS-, not group-focus-visible: the group is this
-              div, which can't take focus — the button inside it does. */}
-          <div className="snippet hidden max-w-[180px] text-[11px] leading-snug text-muted
+          {/* A floating preview of what gets appended — absolute, so opening it
+              never pushes a button around. Armed state is the button's own tint.
+              focus-VISIBLE, not focus-within: clicking a prompt focuses it, and
+              focus-within would then pin its popup open for good. It has to be
+              group-HAS-, not group-focus-visible: the group is this div, which
+              can't take focus — the button inside it does. */}
+          <div className="snippet pointer-events-none absolute bottom-full right-3 left-3 z-20
+                          mb-1.5 hidden rounded-md border border-edge bg-control px-2.5 py-1.5
+                          text-[11px] leading-snug text-ink shadow-lg
                           group-hover:block group-has-[:focus-visible]:block">
             {p.text}
           </div>
