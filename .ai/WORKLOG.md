@@ -136,3 +136,25 @@
 - Opacity modifiers on custom theme colours (`bg-armed/15`, `border-danger/60`)
   work in v4.3.3 — emitted as a hex-alpha rule plus a color-mix override.
 - 32/32 checks pass. Branch: worktree-dark-restyle.
+
+## 2026-08-25 — prompt snippet becomes a hover preview
+- The snippet used to render only while a prompt was armed; it now previews on
+  hover instead, so you can read what a prompt appends before committing to it.
+  Armed state is carried by the button's own tint (BTN_ON), which it already was.
+- Two traps on the way:
+  - `group-focus-within` pinned a snippet open permanently, because clicking a
+    prompt focuses its button. `group-focus-visible` is the right idea (Tab yes,
+    click no) but is INERT here — that variant needs the `.group` element itself
+    focusable, and the group is a plain div. `group-has-[:focus-visible]` is the
+    one that works: the group HAS a focus-visible descendant.
+  - `items-start` on the wrapper — without it the button stretches to the
+    snippet's width when the preview opens, resizing the thing under the cursor.
+- Both were caught only by measuring (visible-snippet counts, button bounding
+  box across hover), not by looking at a screenshot. A JSX comment placed as a
+  bare expression inside .map() also failed the build and served a STALE dist —
+  worth re-reading build output rather than trusting an unchanged screenshot.
+- parity.mjs section 6 rewritten: every snippet is now always in the DOM, so
+  presence no longer proves armed state. Disarm is proven by what gets SENT.
+  Parity 22 → 23 checks, suite 32 → 33. tests/README drag-select count was also
+  wrong (said 4, is 5) — corrected.
+- Branch: worktree-dark-restyle.

@@ -55,7 +55,7 @@ stepboard/
   selection is readable — that is what ⌘⇧L needs.
 - Selection → input is keyboard-only: the "take terminal selection" button is
   gone, ⌘⇧L remains.
-- UI is React + Vite + Tailwind; 32 headless checks pass (22 parity + 5
+- UI is React + Vite + Tailwind; 33 headless checks pass (23 parity + 5
   regression + 5 drag-select), run via `npm test`, non-zero exit on failure.
 - Drag in the terminal selects text even while Claude Code has mouse reporting
   on: mouse events are re-dispatched as alt-carrying clones (force selection).
