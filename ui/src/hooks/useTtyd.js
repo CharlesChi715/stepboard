@@ -123,7 +123,10 @@ export function useTtyd({ onSelection } = {}) {
     return picked
   }, [])
 
-  return { hostRef, takeSelection }
+  // ⌘J: the left pane has exactly one focus target — xterm's hidden textarea
+  const focusTerm = useCallback(() => termRef.current?.focus(), [])
+
+  return { hostRef, takeSelection, focusTerm }
 }
 
 // ⌘⇧L, plus ⌃⇧L as a spare in case a browser reserves the ⌘ combo.

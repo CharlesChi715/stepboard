@@ -59,6 +59,7 @@ The browser opens the vite column; the uvicorn column is the API behind it
 | key | does |
 | --- | --- |
 | ⌘⇧L | terminal selection → input bar, focused (⌃⇧L works too) |
+| ⌘J | jump to the CLI — J and K sit in screen order, left pane then panel |
 | ⌘K | jump to the input bar |
 | ⌘A | select the input bar's text |
 | Enter | send · Shift+Enter = newline |

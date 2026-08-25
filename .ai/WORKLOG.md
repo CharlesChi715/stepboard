@@ -115,3 +115,22 @@
   before/after screenshot of the panel. Deltas are only what preflight forces:
   slightly roomier line-height and flat rather than native button chrome.
 - Branch: worktree-tailwind-migration.
+
+## 2026-08-25 — ⌘J: focus the CLI pane
+
+- Charles wanted the missing half of the focus pair: ⌘K already jumped to the
+  panel input, nothing walked back to the terminal.
+- The left pane has exactly one focus target — xterm's `.xterm-helper-textarea`
+  — so the whole feature is `term.focus()`. `useTtyd` now returns `focusTerm`.
+- Key choice: ⌘ combos are the only safe family. xterm's parser ignores
+  `metaKey`, so ⌘J emits no bytes and cannot collide with the CLI; ⌃J would
+  emit 0x0A (Enter) and ⌃L 0x0C (clear). J/K sit in screen order under the
+  right hand — left pane, then panel. Browser-free in Chrome and Safari
+  (Firefox binds ⌘J to Downloads; ⌥⌘J is the spare if that ever matters).
+- App's document listener is capture-phase, so it beats xterm's own handler —
+  no `attachCustomKeyEventHandler` guard needed, unlike ⌃⇧L.
+- Tightened the ⌘K parity check while adding the ⌘J one: it asserted
+  `tagName === 'TEXTAREA'`, which xterm's hidden input also satisfies, so a
+  failure could have passed vacuously. Now it requires `.closest('.panel')`.
+- 33/33 green on a throwaway stack (ttyd 7699 / uvicorn 8011).
+- Branch: worktree-cmd-j-focus-cli.

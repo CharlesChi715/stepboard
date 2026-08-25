@@ -27,7 +27,7 @@ stepboard/
 - Mentor mode: Claude gives ≤2-line steps; Charles does the work himself and
   Claude only writes code when explicitly asked.
 
-## Current state (2026-08-24)
+## Current state (2026-08-25)
 
 - Styling is Tailwind v4 (`@tailwindcss/vite`). `styles.css` is just the Tailwind
   import + an `@theme` palette (`edge`, `muted`, `chrome*`, `armed*`, `danger`,
@@ -46,6 +46,9 @@ stepboard/
   selection is readable — that is what ⌘⇧L needs.
 - Selection → input is keyboard-only: the "take terminal selection" button is
   gone, ⌘⇧L remains.
+- Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
+  safe because xterm emits no bytes for it; a ⌃ combo would need the
+  `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
 - UI is React + Vite + Tailwind; 32 headless checks pass (22 parity + 5
   regression + 5 drag-select), run via `npm test`, non-zero exit on failure.
 - Drag in the terminal selects text even while Claude Code has mouse reporting

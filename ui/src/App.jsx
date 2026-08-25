@@ -31,7 +31,7 @@ export default function App() {
   const onSelection = useCallback(s => flash(`selected: ${s.length} chars`), [flash])
   const onKeyReport = useCallback(e => flash(
     `key: ${e.code} meta=${e.metaKey} ctrl=${e.ctrlKey} alt=${e.altKey} hit=${isGrabKey(e)}`), [flash])
-  const { hostRef, takeSelection } = useTtyd({ onSelection })
+  const { hostRef, takeSelection, focusTerm } = useTtyd({ onSelection })
 
   // ⌘⇧L (or the button): terminal selection → input bar → focus, caret at the end
   const grab = useCallback(() => {
@@ -62,6 +62,9 @@ export default function App() {
       if (isGrabKey(e)) { e.preventDefault(); e.stopPropagation(); grab(); return }
       const inTerminal = hostRef.current?.contains(e.target)   // keys typed at the CLI are the CLI's
       const plain = !e.shiftKey && !e.altKey                   // ⌘K/⌘A only — leave ⌘⇧K, ⌥⌘K alone
+      if (plain && e.metaKey && (e.code === 'KeyJ' || e.key === 'j')) {
+        e.preventDefault(); focusTerm(); return       // ⌘J ← left pane · ⌘K → panel
+      }
       if (plain && e.metaKey && (e.code === 'KeyK' || e.key === 'k')) {
         e.preventDefault(); inputRef.current?.focus(); return
       }
@@ -79,7 +82,7 @@ export default function App() {
     }
     document.addEventListener('keydown', onKey, true)
     return () => document.removeEventListener('keydown', onKey, true)
-  }, [grab, sendComposed, hostRef, onKeyReport])
+  }, [grab, sendComposed, hostRef, onKeyReport, focusTerm])
 
   return (
     <>

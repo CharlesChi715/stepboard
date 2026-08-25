@@ -79,7 +79,14 @@ await suite('parity', async ({ page, ok }) => {
   await page.fill('.panel textarea', 'focus test')
   await page.locator('.term').click()
   await page.keyboard.press('Meta+k')
-  ok('⌘K focuses input', await page.evaluate(() => document.activeElement?.tagName === 'TEXTAREA'))
+  // xterm's hidden input is a <textarea> too, so tagName alone would pass vacuously
+  ok('⌘K focuses input', await page.evaluate(() =>
+    !!document.activeElement?.closest('.panel') && document.activeElement.tagName === 'TEXTAREA'))
+
+  // 8b — ⌘J walks back the other way: the left pane's one focus target
+  await page.keyboard.press('Meta+j')
+  ok('⌘J focuses the terminal', await page.evaluate(() =>
+    !!document.activeElement?.classList.contains('xterm-helper-textarea')))
 
   // 9 — regression guard: Enter typed in the terminal must NOT send the panel text
   await page.fill('.panel textarea', 'do not send me')
