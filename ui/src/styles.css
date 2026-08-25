@@ -3,18 +3,30 @@
    unlayered rule outranks every layered one, so xterm keeps its own styling. */
 @import "@xterm/xterm/css/xterm.css";
 
-/* The panel's palette, named once here so components say `border-edge` or
-   `bg-armed` instead of repeating hex literals. */
+/* The panel's palette. The terminal is hardcoded to #000 in useTtyd.js, so the
+   panel sits a hair above that rather than fighting it — one window, two panes. */
 @theme {
   --default-font-family: system-ui;
 
-  --color-edge: #ccc;
-  --color-muted: #888;
-  --color-chrome: #f6f6f6;
-  --color-chrome-hover: #eaeaea;
-  --color-chrome-active: #e0e0e0;
-  --color-armed: #2b44c4;
-  --color-armed-hover: #243ba8;
-  --color-danger: #c0392b;
-  --color-good: #1e7a40;
+  /* surfaces, darkest to lightest */
+  --color-bg: #0a0a0c;          /* the panel itself */
+  --color-card: #101014;        /* a fieldset */
+  --color-control: #1a1a20;     /* a button or input at rest */
+  --color-control-hi: #23232b;  /* …hovered */
+  --color-control-on: #2c2c36;  /* …pressed */
+
+  /* lines */
+  --color-edge: #2b2b35;        /* a control's outline */
+  --color-edge-soft: #1e1e25;   /* a fieldset's outline — quieter than its contents */
+
+  /* text */
+  --color-ink: #e8e8ec;
+  --color-muted: #8b8b98;
+
+  /* state. The light theme's #2b44c4 / #c0392b / #1e7a40 all go muddy on a
+     near-black ground, so each is lifted until it reads at a glance. */
+  --color-armed: #6b8afd;
+  --color-armed-hi: #829bff;
+  --color-danger: #f0616d;
+  --color-good: #3ecf8e;
 }

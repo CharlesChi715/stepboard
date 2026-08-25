@@ -58,14 +58,23 @@ await suite('parity', async ({ page, ok }) => {
   await page.fill('.panel textarea', 'edit test 2'); await page.keyboard.press('Enter'); await page.waitForTimeout(300)
   ok('edit-cap clause', /change at most 20 lines at a time/.test(sent[0]?.text || ''))
 
-  // 6 — prompts arm/disarm
-  await page.click('.prompts button')
-  ok('prompt shows snippet when armed', await page.locator('.snippet').isVisible())
+  // 6 — prompts arm/disarm. The snippet is a hover preview, not a status line,
+  // so every snippet is always in the DOM — armed state is proven by what gets
+  // sent, never by the snippet being on screen.
+  const proBtn = page.locator('.prompts button').first()
+  const snippet = page.locator('.snippet').first()
+  await proBtn.hover(); await page.waitForTimeout(150)
+  ok('snippet previews on hover', await snippet.isVisible())
+  await page.locator('.term').hover(); await page.waitForTimeout(150)
+  ok('snippet hides when not hovered', !(await snippet.isVisible()))
+  await proBtn.click()
   sent.length = 0
   await page.fill('.panel textarea', 'with prompt'); await page.keyboard.press('Enter'); await page.waitForTimeout(300)
   ok('armed prompt appended', /pro and professional way/.test(sent[0]?.text || ''))
-  await page.click('.prompts button')
-  ok('prompt disarms', !(await page.locator('.snippet').count()))
+  await proBtn.click()
+  sent.length = 0
+  await page.fill('.panel textarea', 'without prompt'); await page.keyboard.press('Enter'); await page.waitForTimeout(300)
+  ok('prompt disarms', !/pro and professional way/.test(sent[0]?.text || ''))
 
   // 7 — history
   await page.click('.panel button:text("history")')

@@ -116,6 +116,73 @@
   slightly roomier line-height and flat rather than native button chrome.
 - Branch: worktree-tailwind-migration.
 
+## 2026-08-24 — dark panel, matched to the terminal
+- Charles picked "dark, matched to terminal" over refined-light / auto. The
+  white panel beside a hardcoded-#000 terminal was the biggest thing hurting
+  the look; the terminal can't meet you halfway, so the panel moved.
+- New `@theme` palette in styles.css: surfaces bg/card/control(+hi/on), lines
+  edge/edge-soft, text ink/muted, state armed/danger/good. The old light values
+  (#2b44c4/#c0392b/#1e7a40) all go muddy below ~#1a1a1a, so each was lifted.
+- `scheme-dark` on <body> is the load-bearing trick: it darkens the NATIVE
+  controls (radio/checkbox ticks, number spinners, scrollbar) that Tailwind
+  can't reach. `accent-armed` tints the ticks. Verified `.scheme-dark` and
+  `accent-color` both land in the built CSS.
+- Three fixes independent of colour: Send is now the only solid-accent control
+  (it was visually identical to history/summarize despite being the primary
+  action); focus rings are explicit since the native ring vanishes on dark;
+  legends are uppercase micro-labels rather than prose.
+- Contrast checked numerically, not by eye — all 8 text/bg pairs clear WCAG AA,
+  lowest 4.99:1 (armed on its own tinted chip), highest 16.19:1 (ink on panel).
+- Opacity modifiers on custom theme colours (`bg-armed/15`, `border-danger/60`)
+  work in v4.3.3 — emitted as a hex-alpha rule plus a color-mix override.
+- 32/32 checks pass. Branch: worktree-dark-restyle.
+
+## 2026-08-25 — prompt snippet becomes a hover preview
+- The snippet used to render only while a prompt was armed; it now previews on
+  hover instead, so you can read what a prompt appends before committing to it.
+  Armed state is carried by the button's own tint (BTN_ON), which it already was.
+- Two traps on the way:
+  - `group-focus-within` pinned a snippet open permanently, because clicking a
+    prompt focuses its button. `group-focus-visible` is the right idea (Tab yes,
+    click no) but is INERT here — that variant needs the `.group` element itself
+    focusable, and the group is a plain div. `group-has-[:focus-visible]` is the
+    one that works: the group HAS a focus-visible descendant.
+  - `items-start` on the wrapper — without it the button stretches to the
+    snippet's width when the preview opens, resizing the thing under the cursor.
+- Both were caught only by measuring (visible-snippet counts, button bounding
+  box across hover), not by looking at a screenshot. A JSX comment placed as a
+  bare expression inside .map() also failed the build and served a STALE dist —
+  worth re-reading build output rather than trusting an unchanged screenshot.
+- parity.mjs section 6 rewritten: every snippet is now always in the DOM, so
+  presence no longer proves armed state. Disarm is proven by what gets SENT.
+  Parity 22 → 23 checks, suite 32 → 33. tests/README drag-select count was also
+  wrong (said 4, is 5) — corrected.
+- Branch: worktree-dark-restyle.
+
+## 2026-08-25 — snippet becomes a real popup; the white strip explained
+- Snippet preview is now absolutely positioned, so opening it never pushes a
+  button around. Verified by measuring: .send y and .prompts height are
+  byte-identical across hover, and the popup stays inside the panel's box.
+- `relative` sits on the FIELDSET, not the button wrapper. That makes the card
+  the containing block, so the popup spans the card's width instead of hanging
+  off a button and being clipped — .panel is overflow-y-auto, which makes
+  overflow-x non-visible too, so anything overhanging gets cut.
+- It opens UPWARD (bottom-full). Downward landed squarely on the bright blue
+  Send button and read as a rendering bug; upward it floats over the dark edits
+  card and reads as a popup.
+- The white strip between the panes: xterm.css sets `overflow-y: scroll` (not
+  auto) on .xterm-viewport, and xterm's Viewport computes
+  `scrollBarWidth = viewportElement.offsetWidth - scrollArea.offsetWidth || 15`
+  — so when the browser reports 0 (macOS overlay scrollbars) it STILL reserves
+  15px, which FitAddon subtracts. Measured: .xterm-screen ends at 1023, the
+  viewport at 1040. On a Mac set to "show scroll bars: always" the OS paints
+  that gutter light → the white strip.
+- Fix: style .xterm-viewport::-webkit-scrollbar via arbitrary variants on TERM
+  (black track, edge-coloured thumb) so Chromium draws ours. NOT reproducible
+  headlessly — headless macOS always reports overlay scrollbars — so this one
+  needs Charles to confirm on his screen.
+- 33/33 pass. Branch: worktree-dark-restyle.
+
 ## 2026-08-25 — ⌘J: focus the CLI pane
 
 - Charles wanted the missing half of the focus pair: ⌘K already jumped to the
@@ -133,4 +200,7 @@
   `tagName === 'TEXTAREA'`, which xterm's hidden input also satisfies, so a
   failure could have passed vacuously. Now it requires `.closest('.panel')`.
 - 33/33 green on a throwaway stack (ttyd 7699 / uvicorn 8011).
+- Merged main afterwards (the dark-restyle + snippet-popup run). Only the two
+  docs conflicted — both were append-at-the-end collisions, no code overlap.
+  34/34 green after the merge, so ⌘J survives the hover-preview rework.
 - Branch: worktree-cmd-j-focus-cli.

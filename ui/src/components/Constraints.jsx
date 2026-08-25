@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { FIELDSET, FIELDSET_BARE, LABEL, LEGEND, NUM, TICK } from '../lib/ui.js'
+import { FIELDSET, FIELDSET_BARE, LABEL, LEGEND, LEGEND_BARE, NUM, TICK } from '../lib/ui.js'
 
 const UNIT_DEFAULTS = { sentences: 2, words: 100 }
 
@@ -49,9 +49,9 @@ export function Format({ chart, onChart }) {
 
 // frame colour = the mode you are in: red 0/no-edits, green capped, grey off
 const MOOD = {
-  '': { frame: 'border-edge', legend: '' },
-  danger: { frame: 'border-danger', legend: 'text-danger' },
-  ok: { frame: 'border-good', legend: 'text-good' },
+  '': { frame: 'border-transparent', legend: 'text-muted' },
+  danger: { frame: 'border-danger/60', legend: 'text-danger' },
+  ok: { frame: 'border-good/60', legend: 'text-good' },
 }
 
 export function Edits({ lines, onLines }) {
@@ -59,7 +59,7 @@ export function Edits({ lines, onLines }) {
   const tone = MOOD[mood]
   return (
     <fieldset className={[mood, FIELDSET_BARE, tone.frame].filter(Boolean).join(' ')}>
-      <legend className={`${LEGEND} ${tone.legend}`}>edits</legend>
+      <legend className={`${LEGEND_BARE} ${tone.legend}`}>edits</legend>
       <label className={LABEL}>≤ <input type="number" min="0" value={lines} className={NUM}
                       onChange={e => onLines(e.target.value)} /> lines per step (0 = no edits)</label>
     </fieldset>
