@@ -1,14 +1,23 @@
-import { BTN, BTN_ON, FIELDSET_ROW, LEGEND } from '../lib/ui.js'
-
-// Pre-built prompts — add yours here as {label, text}.
-export const PROMPTS = [
-  { label: 'pro', text: "What's the pro and professional way to do this?" },
-  { label: 'socratic', text: "Use socratic way." },
-  { label: 'first principles', text: "Use first principles." },
-]
+import { useState } from 'react'
+import { BTN, BTN_ON, FIELDSET_ROW, LEGEND, TEXT_IN } from '../lib/ui.js'
 
 // Armed prompts are appended at SEND time, not typed into the box.
-export default function Prompts({ armed, onToggle }) {
+// The list itself (built-ins + yours) comes from usePrompts.
+export default function Prompts({ prompts, armed, onToggle, onAdd }) {
+  const [open, setOpen] = useState(false)
+  const [label, setLabel] = useState('')
+  const [text, setText] = useState('')
+  const [err, setErr] = useState(null)
+
+  const close = () => { setOpen(false); setLabel(''); setText(''); setErr(null) }
+
+  const submit = e => {
+    e.preventDefault()
+    const why = onAdd(label, text)          // null = added, string = rejected
+    if (why) return setErr(why)
+    close()
+  }
+
   return (
     // `relative` here, and NOT on the wrapper below, is deliberate: it makes the
     // fieldset the popup's containing block, so the popup spans this card's width
@@ -16,7 +25,7 @@ export default function Prompts({ armed, onToggle }) {
     // overflow-y-auto (which makes overflow-x non-visible too).
     <fieldset className={`prompts ${FIELDSET_ROW} relative`}>
       <legend className={LEGEND}>prompts</legend>
-      {PROMPTS.map(p => (
+      {prompts.map(p => (
         <div className="group" key={p.label}>
           <button className={armed.includes(p.label) ? BTN_ON : BTN}
                   onClick={() => onToggle(p.label)}>{p.label}</button>
@@ -34,6 +43,33 @@ export default function Prompts({ armed, onToggle }) {
           </div>
         </div>
       ))}
+
+      {/* Last in the row on purpose: the prompts keep their positions, and a
+          test that reaches for `.prompts button` first still lands on a prompt. */}
+      <button className={`new-prompt ${open ? BTN_ON : BTN}`} aria-expanded={open}
+              onClick={() => (open ? close() : setOpen(true))}>+ new</button>
+
+      {/* basis-full breaks the wrap row, so the form gets the card's full width —
+          the panel is only 15rem, too narrow to put fields beside each other.
+          data-own-enter tells App's global handler that Enter in here submits
+          this form instead of sending the message. */}
+      {open && (
+        <form data-own-enter className="basis-full flex flex-col gap-2" onSubmit={submit}
+              onKeyDown={e => { if (e.key === 'Escape') close() }}>
+          {/* type="text" is load-bearing: App's ⌘A guard selects on
+              `input[type=text]`, which does not match an input with no type */}
+          <input className={TEXT_IN} type="text" value={label} autoFocus placeholder="label (button text)"
+                 onChange={e => { setLabel(e.target.value); setErr(null) }} />
+          <textarea className={`${TEXT_IN} resize-none`} value={text} rows={3}
+                    placeholder="text appended when armed"
+                    onChange={e => { setText(e.target.value); setErr(null) }} />
+          {err && <span className="text-[11px] leading-snug text-danger">{err}</span>}
+          <div className="flex gap-2">
+            <button className={BTN} type="submit">add</button>
+            <button className={BTN} type="button" onClick={close}>cancel</button>
+          </div>
+        </form>
+      )}
     </fieldset>
   )
 }

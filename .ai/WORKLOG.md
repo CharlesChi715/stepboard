@@ -204,3 +204,26 @@
   docs conflicted — both were append-at-the-end collisions, no code overlap.
   34/34 green after the merge, so ⌘J survives the hover-preview rework.
 - Branch: worktree-cmd-j-focus-cli.
+
+## 2026-08-26 — make a prompt from the panel
+
+- Ask: a button in PROMPTS that creates a new prompt.
+- `+ new` sits last in the wrap row (so the prompts keep their places, and
+  `.prompts button` first still lands on `pro`) and toggles an inline form:
+  label, text, add/cancel. `basis-full` breaks the flex row so the form gets
+  the card's full 15rem — too narrow to put fields side by side.
+- New hook `usePrompts`: `BUILTIN` (the three that shipped) + custom ones in
+  localStorage under `sb-prompts`. `add()` returns null or a reason, which the
+  form shows inline — empty fields and duplicate labels are refused. Labels
+  are the identity, since App arms by label; a duplicate would shadow.
+- Two capture-phase traps, both in App's global keydown:
+  - Enter sends from anywhere, and that listener is on document in CAPTURE
+    phase, so nothing the form attaches to itself can stop it first. The form
+    marks itself `data-own-enter` and App declines.
+  - The ⌘A guard selects on `input[type=text]`, which does NOT match an input
+    with no type attribute — so the label field carries `type="text"`.
+- PROMPTS moved out of Prompts.jsx into the hook; App imports from there.
+- Parity grew 8 checks (24 → 32), appended last on purpose: the block reloads
+  the page to prove localStorage survived, and leaves a prompt behind.
+- 42/42 green on a throwaway stack (ttyd 7691 / uvicorn 8011).
+- Branch: feat/new-prompt-btn.

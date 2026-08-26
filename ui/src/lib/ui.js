@@ -57,6 +57,12 @@ export const NUM =
 // accent-armed tints the native tick itself; without it macOS draws its own blue
 export const TICK = 'mr-2 accent-armed align-middle touch-manipulation'
 
+// Free text — same chrome as NUM, but it fills the width it is given instead of
+// sitting mid-sentence. The panel is 15rem wide, so these fields always stack.
+export const TEXT_IN =
+  'w-full rounded-md border border-edge bg-control px-2 py-1 text-ink touch-manipulation ' +
+  'placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+
 // The terminal host. xterm.js builds its own DOM inside, so those elements are
 // only reachable with descendant variants from out here.
 //   cursor-text — I-beam, never the drag-a-thing circle: xterm switches to

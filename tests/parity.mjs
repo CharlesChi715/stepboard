@@ -110,4 +110,43 @@ await suite('parity', async ({ page, ok }) => {
   await page.click('.summarize'); await page.waitForTimeout(300)
   ok('summarize sends canned text', /Summarize this session\./.test(sent[0]?.text || ''))
   ok('summarize keeps draft', (await page.inputValue('.panel textarea')) === 'do not send me')
+
+  // 11 — making a prompt from the panel. Last on purpose: it reloads the page
+  // (to prove the new prompt survived) and leaves a prompt behind, so nothing
+  // above it can be disturbed by either.
+  await page.click('.new-prompt'); await page.waitForTimeout(150)
+  const form = page.locator('.prompts form')
+  ok('+ new opens the form', await form.isVisible())
+
+  sent.length = 0
+  await form.locator('input[type=text]').fill('tdd')
+  await page.keyboard.press('Enter')                 // in the form: submits, never sends
+  await page.waitForTimeout(200)
+  ok('Enter in the form does not send', sent.length === 0, JSON.stringify(sent))
+  ok('empty text is refused', await form.locator('.text-danger').isVisible())
+
+  await form.locator('textarea').fill('Write the test first.')
+  await form.locator('button[type=submit]').click()
+  await page.waitForTimeout(200)
+  const tdd = page.locator('.prompts button', { hasText: /^tdd$/ })
+  ok('new prompt appears', await tdd.count() === 1)
+  ok('form closes after adding', await page.locator('.prompts form').count() === 0)
+
+  sent.length = 0
+  await tdd.click()
+  await page.fill('.panel textarea', 'new prompt test'); await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  ok('new prompt arms + appends', /Write the test first\./.test(sent[0]?.text || ''))
+
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('new prompt survives reload',
+     await page.locator('.prompts button', { hasText: /^tdd$/ }).count() === 1)
+
+  await page.click('.new-prompt'); await page.waitForTimeout(150)
+  await page.locator('.prompts form input[type=text]').fill('tdd')
+  await page.locator('.prompts form textarea').fill('a duplicate label')
+  await page.locator('.prompts form button[type=submit]').click()
+  await page.waitForTimeout(200)
+  ok('duplicate label refused', /already exists/.test(
+       await page.locator('.prompts form .text-danger').textContent().catch(() => '')))
 })

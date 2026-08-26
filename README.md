@@ -84,10 +84,15 @@ The original vanilla-JS page this replaced lives in git history:
 
 ## Customize
 
-Add a prompt button in `ui/src/components/Prompts.jsx`:
+Add a prompt button from the panel: **+ new** in the PROMPTS card opens a
+label + text form. Yours are kept in `localStorage` (`sb-prompts`), so they
+survive reloads — no rebuild, no file to edit.
+
+To ship one with the app instead, add it to `BUILTIN` in
+`ui/src/hooks/usePrompts.js`:
 
 ```js
-export const PROMPTS = [
+export const BUILTIN = [
   { label: 'pro',   text: "What's the pro and professional way to do this?" },
   { label: 'yours', text: 'your canned prompt here' },          // ← add like this
 ]

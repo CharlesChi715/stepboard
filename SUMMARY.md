@@ -10,7 +10,7 @@ stepboard/
 │       ├── App.jsx     # state, composer, global shortcuts
 │       ├── styles.css  # Tailwind import + @theme palette — no hand-written rules
 │       ├── components/ # MessageBar · Constraints · Prompts · History · Badge
-│       ├── hooks/      # useTtyd (xterm.js + ttyd protocol) · useHistory (localStorage)
+│       ├── hooks/      # useTtyd (xterm.js + ttyd protocol) · useHistory · usePrompts (localStorage)
 │       └── lib/        # compose.js — message + constraints → text · ui.js — class strings
 ├── bin/claude-s        # launcher — session N: ttyd :768N + uvicorn :800N + vite :5172+N
 ├── tests/              # headless checks: harness · parity · regressions · drag-select
@@ -58,8 +58,13 @@ stepboard/
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 34 headless checks pass (24 parity + 5
+- UI is React + Vite + Tailwind; 42 headless checks pass (32 parity + 5
   regression + 5 drag-select), run via `npm test`, non-zero exit on failure.
+- Prompts come from `usePrompts`: `BUILTIN` ships in the file, yours are made
+  with the `+ new` button and kept in localStorage (`sb-prompts`). Labels are
+  the identity — App arms by label — so a duplicate is refused, not shadowed.
+  The form carries `data-own-enter`: App's Enter-sends handler is a document
+  CAPTURE listener, so only App can decline it.
 - Drag in the terminal selects text even while Claude Code has mouse reporting
   on: mouse events are re-dispatched as alt-carrying clones (force selection).
   Never force shift too — that makes xterm extend a selection instead of
@@ -76,4 +81,5 @@ stepboard/
 ## Next potential steps
 
 - Charles: confirm drag-select + ⌘⇧L in Safari (only Chromium is covered).
-- Later: auto-reconnect when ttyd drops · error handling (dead tmux) · more prompts.
+- Later: auto-reconnect when ttyd drops · error handling (dead tmux) ·
+  edit/delete a custom prompt (only creating one exists today).
