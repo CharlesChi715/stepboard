@@ -4,15 +4,32 @@ from pydantic import BaseModel                   # JSON-contract library FastAPI
 import subprocess                                # unchanged — the tmux door
 import os                                        # to read the env vars claude-s passes down
 import sys                                       # for the single-write log line in /send
+import session_tree                              # transcript → branch structure
 
 app = FastAPI()                                  # THE app — what "serve:app" points at
 
 SESSION = os.environ.get("SB_SESSION", "sb")     # which tmux session /send targets
 TTYD_PORT = os.environ.get("SB_TTYD_PORT", "7681")  # which port the terminal should talk to
+# The CLI's own session id. claude-s picks it and hands the same value to BOTH
+# `claude --session-id` and this server, so the panel reads the exact transcript
+# the left pane is writing. Guessing by mtime is not good enough: sb1 and sb2
+# both run in the repo root, so they share one project directory.
+CLAUDE_SESSION = os.environ.get("SB_CLAUDE_SESSION")
+TRANSCRIPT = os.environ.get("SB_TRANSCRIPT")     # explicit override — the tests use it
 
 @app.get("/config")                              # the browser asks: "which ttyd am I paired with?"
 def config():
     return {"ttyd_port": TTYD_PORT, "session": SESSION}
+
+@app.get("/branches")                            # the panel asks: "where did this session fork?"
+def branches():
+    path, source = session_tree.find_transcript(os.getcwd(), CLAUDE_SESSION, TRANSCRIPT)
+    if not path:
+        return {"source": source, "prompts": 0, "branches": 0, "root": None, "points": []}
+    data = session_tree.branch_tree(path)
+    data["source"] = source                      # the panel says so when this is a guess
+    data["file"] = os.path.basename(path)[:8]
+    return data
 
 @app.middleware("http")                          # dev panel: never serve a stale page
 async def no_cache(request, call_next):          # (Safari loves to keep old JS around)

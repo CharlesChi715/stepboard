@@ -4,16 +4,18 @@
 
 ```
 stepboard/
-├── serve.py            # FastAPI: GET /config (pairing), POST /send → tmux, serves ui/dist
+├── serve.py            # FastAPI: GET /config (pairing) · GET /branches · POST /send → tmux
+├── session_tree.py     # session .jsonl → conversation branch tree (used by /branches)
 ├── ui/                 # React + Vite + Tailwind v4 (npm run dev :5173 · build → ui/dist)
 │   └── src/
 │       ├── App.jsx     # state, composer, global shortcuts
 │       ├── styles.css  # Tailwind import + @theme palette — no hand-written rules
-│       ├── components/ # MessageBar · Constraints · Prompts · History · Badge
+│       ├── components/ # MessageBar · Constraints · Prompts · History · Branches · Badge
 │       ├── hooks/      # useTtyd (xterm.js + ttyd protocol) · useHistory · usePrompts (localStorage)
 │       └── lib/        # compose.js — message + constraints → text · ui.js — class strings
 ├── bin/claude-s        # launcher — session N: ttyd :768N + uvicorn :800N + vite :5172+N
-├── tests/              # headless checks: harness · parity · regressions · drag-select
+├── tests/              # headless checks: harness · parity · regressions · drag-select · branches
+│   └── fixtures/       # session-branch.jsonl — a transcript with one real branch
 ├── package.json        # test deps (Playwright) + `npm test`
 ├── pyproject.toml      # deps: fastapi, uvicorn (run via uv)
 ├── IDEAS.md            # Charles's idea notebook — raw dump → pitch → decisions
@@ -63,9 +65,26 @@ stepboard/
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 43 headless checks pass (32 parity + 5
-  regression + 6 drag-select), run via `npm test`, non-zero exit on failure.
-  They need a live stack on `SB_BASE` (default :8011) serving a built `ui/dist`.
+- `branch` button (under `history`, or type `/branch` in the box) shows the
+  CONVERSATION's tree — where this Claude Code session forked, not git.
+  Branch = two prompts you typed sharing a nearest prompt-ancestor, which is
+  what interrupting or editing a prompt leaves behind. The abandoned side is
+  struck through, the surviving side is `●`; clicking either refills the input.
+  Only fork points are drawn (a session is a straight line plus 0-3 forks);
+  no fork ⇒ just the root.
+- The trap `session_tree.py` exists to avoid: raw uuid/parentUuid forks are NOT
+  branches. Parallel tool calls write a `tool_use` and a `tool_result` record
+  under the same parentUuid — naive counting finds 11 forks where 1 is real.
+  Sidechains (subagents) and tool-result user records are excluded too.
+- The panel reads the LEFT PANE's session, never a guess: claude-s mints a UUID
+  and passes it to both `claude --session-id` and `SB_CLAUDE_SESSION`. Needed
+  because sb1 and sb2 share a project dir, so newest-file picks the wrong one.
+  Sessions started before this change fall back to newest-by-mtime and the view
+  says so. `SB_TRANSCRIPT` points at any file — that is how the tests run.
+- UI is React + Vite + Tailwind; 55 headless checks pass (32 parity + 5
+  regression + 6 drag-select + 12 branches), run via `npm test`, non-zero exit
+  on failure. They need a live stack on `SB_BASE` (default :8011) serving a
+  built `ui/dist`; the branches suite needs `SB_TRANSCRIPT` set to its fixture.
 - Prompts come from `usePrompts`: `BUILTIN` ships in the file, yours are made
   with the `+ new` button and kept in localStorage (`sb-prompts`). Labels are
   the identity — App arms by label — so a duplicate is refused, not shadowed.

@@ -1,0 +1,9 @@
+{"type": "user", "uuid": "p1", "parentUuid": null, "isSidechain": false, "timestamp": "2026-08-29T09:00:00.000Z", "sessionId": "fixture", "message": {"role": "user", "content": "start the panel"}}
+{"type": "assistant", "uuid": "a1", "parentUuid": "p1", "isSidechain": false, "timestamp": "2026-08-29T09:01:00.000Z", "sessionId": "fixture", "message": {"role": "assistant", "content": [{"type": "text", "text": "on it"}]}}
+{"type": "assistant", "uuid": "t1", "parentUuid": "a1", "isSidechain": false, "timestamp": "2026-08-29T09:02:00.000Z", "sessionId": "fixture", "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Read", "id": "x", "input": {}}]}}
+{"type": "user", "uuid": "t2", "parentUuid": "a1", "isSidechain": false, "timestamp": "2026-08-29T09:02:00.000Z", "sessionId": "fixture", "message": {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}}
+{"type": "user", "uuid": "s1", "parentUuid": "a1", "isSidechain": true, "timestamp": "2026-08-29T09:03:00.000Z", "sessionId": "fixture", "message": {"role": "user", "content": "subagent instructions"}}
+{"type": "user", "uuid": "p2", "parentUuid": "t2", "isSidechain": false, "timestamp": "2026-08-29T09:04:00.000Z", "sessionId": "fixture", "message": {"role": "user", "content": "fix it and cmd"}}
+{"type": "user", "uuid": "p3", "parentUuid": "t2", "isSidechain": false, "timestamp": "2026-08-29T09:05:00.000Z", "sessionId": "fixture", "message": {"role": "user", "content": "fix it and cmt"}}
+{"type": "assistant", "uuid": "a2", "parentUuid": "p3", "isSidechain": false, "timestamp": "2026-08-29T09:06:00.000Z", "sessionId": "fixture", "message": {"role": "assistant", "content": [{"type": "text", "text": "done"}]}}
+{"type": "user", "uuid": "p4", "parentUuid": "a2", "isSidechain": false, "timestamp": "2026-08-29T09:07:00.000Z", "sessionId": "fixture", "message": {"role": "user", "content": "merge it"}}

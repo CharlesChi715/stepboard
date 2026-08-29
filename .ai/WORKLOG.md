@@ -261,3 +261,38 @@
 - 43/43 green (32 parity + 5 regressions + 6 drag-select) on a throwaway stack
   (ttyd 7691 / uvicorn 8011, `ui/dist` built first).
 - Branch: worktree-grab-clears-selection → merged to main.
+
+## 2026-08-29 — /branch: the session's own branch tree
+
+- Ask (Charles): a `/branch` view under the history button, drawn as a tree.
+  First read as git branches — corrected: it is the CLAUDE CODE SESSION's
+  branch structure, and it must show the same session as the left pane.
+- Data source: ~/.claude/projects/<slug>/<uuid>.jsonl. Every record carries
+  uuid + parentUuid, so a session is literally a tree.
+- The trap, found by probing all 16 local sessions: raw parent/child forks are
+  mostly FAKE. Parallel tool calls emit an assistant `tool_use` and a user
+  `tool_result` sharing one parentUuid — naive counting reported 11 forks in a
+  session with 1. Real rule: ≥2 records that are type=user, non-sidechain, and
+  carry a text block, sharing their nearest *prompt* ancestor. That found 7
+  real branch points across 4 of 16 sessions — all of them a prompt that was
+  interrupted or edited and resent ("fix it and cmd" → "fix it and cmt").
+- Which session: NOT newest-by-mtime — sb1 and sb2 both run in the repo root
+  and share a project dir, so mtime picks the wrong pane. claude-s now mints a
+  UUID, passes it to `claude --session-id` AND to serve.py as
+  SB_CLAUDE_SESSION, and /branches globs */\<uuid>.jsonl (glob, not the cwd
+  slug, because the CLI may be running inside a worktree). Four honest states:
+  exact · pending (id known, no file yet — never fall back here, it would show
+  a stranger's session) · newest (pre-change sessions, view says so) · none.
+- UI: Branches.jsx, fixed area under the `branch` button, max-h-56 + scroll.
+  `shrink-0` is load-bearing — the panel is a flex column with overflow-y-auto,
+  so without it the box is squeezed to a sliver. Caught by screenshotting, not
+  by the DOM tests, which passed either way.
+- /branch typed in the box is intercepted in sendComposed (typed input only, so
+  a canned send stays literal) — it opens the view and reaches tmux never.
+- 55/55 green (32 parity + 5 regressions + 6 drag-select + 12 new). The new
+  suite runs against tests/fixtures/session-branch.jsonl via SB_TRANSCRIPT;
+  the fixture deliberately contains the tool_use/tool_result pair and a
+  sidechain, so the false-fork rules are actually exercised.
+- Verified by eye at 240px against a real 3-branch session (d1406a11), CJK
+  prompts included.
+- Branch: worktree-session-branch-view.

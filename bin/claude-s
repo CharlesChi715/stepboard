@@ -20,6 +20,12 @@ SESSION="sb$N"
 
 VITE_PORT=$((5172+N))                # session 1 → 5173, session 2 → 5174, ...
 
+# The panel's branch view has to read THIS pane's transcript, and sessions that
+# share a working directory also share a project folder — so "newest file wins"
+# picks the wrong one whenever two are up. Assign the id here instead and give
+# the same value to both sides. Lowercase: claude wants a canonical UUID.
+CLAUDE_SESSION=$(uuidgen | tr 'A-Z' 'a-z')
+
 # Every child pipes through tag(): one colored `label │` per line, so the three
 # interleaved streams stay attributable at a glance. fflush() keeps it live —
 # macOS ships no stdbuf and its sed has no -u. Child ANSI colors don't survive
@@ -36,10 +42,11 @@ tag() {  # tag <label> <ansi-color-code>
 
 print -P "%F{8}── stepboard $N ── term :$TTYD_PORT · api :$WEB_PORT · ui http://localhost:$VITE_PORT ──%f"
 
-ttyd -W -i lo0 -p $TTYD_PORT tmux new -A -s $SESSION claude 2>&1 | tag ttyd 36 &
+ttyd -W -i lo0 -p $TTYD_PORT \
+  tmux new -A -s $SESSION claude --session-id $CLAUDE_SESSION 2>&1 | tag ttyd 36 &
 # PYTHONUNBUFFERED: print() into a pipe block-buffers, which would hold back
 # serve.py's POST /send lines for minutes; force line-by-line delivery.
-SB_SESSION=$SESSION SB_TTYD_PORT=$TTYD_PORT PYTHONUNBUFFERED=1 \
+SB_SESSION=$SESSION SB_TTYD_PORT=$TTYD_PORT SB_CLAUDE_SESSION=$CLAUDE_SESSION PYTHONUNBUFFERED=1 \
   uv run uvicorn serve:app --port $WEB_PORT --reload 2>&1 | tag api 32 &
 (cd ui && SB_PORT=$WEB_PORT npm run dev -- --port $VITE_PORT --strictPort 2>&1 | tag vite 35) &
 sleep 1 && open http://localhost:$VITE_PORT   # localhost, not 127.0.0.1 — vite may bind IPv6 only

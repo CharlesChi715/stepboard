@@ -7,6 +7,7 @@ import { BTN, BTN_BIG, TERM } from './lib/ui.js'
 import MessageBar from './components/MessageBar.jsx'
 import Prompts from './components/Prompts.jsx'
 import History from './components/History.jsx'
+import Branches from './components/Branches.jsx'
 import Badge from './components/Badge.jsx'
 import { Length, Format, Edits } from './components/Constraints.jsx'
 
@@ -18,6 +19,8 @@ export default function App() {
   const [lines, setLines] = useState('')
   const [armed, setArmed] = useState([])
   const [showHist, setShowHist] = useState(false)
+  const [showBranch, setShowBranch] = useState(false)
+  const [branchNonce, setBranchNonce] = useState(0)   // bump = remount = refetch
   const [note, setNote] = useState(null)
   const inputRef = useRef(null)
   const noteTimer = useRef(0)
@@ -50,6 +53,12 @@ export default function App() {
   // with a canned string → sends that instead, leaving your draft alone
   const sendComposed = useCallback(text => {
     const body = (text ?? msg).trim()
+    // /branch is the PANEL's command, not the CLI's — opening the view is the
+    // whole action, so it never reaches tmux. Typed input only: a canned send
+    // must stay literal.
+    if (text == null && body === '/branch') {
+      setShowBranch(true); setBranchNonce(n => n + 1); setMsg(''); return
+    }
     const armedTexts = prompts.filter(p => armed.includes(p.label)).map(p => p.text)
     if (!body && !armedTexts.length) return
     send(compose({ msg: body, armed: armedTexts, unit, n, chart, lines })).then(r => {
@@ -110,6 +119,12 @@ export default function App() {
         <button className={BTN} onClick={() => setShowHist(v => !v)}>history</button>
         {showHist && <History hist={hist}
                               onPick={t => { setMsg(t); inputRef.current?.focus() }} />}
+        <button className={`branch-btn ${BTN}`}
+                onClick={() => { setShowBranch(v => !v); setBranchNonce(n => n + 1) }}>branch</button>
+        {/* key remounts the component, which is what refetches the transcript —
+            the session grows while you look at it */}
+        {showBranch && <Branches key={branchNonce}
+                                 onPick={t => { setMsg(t); inputRef.current?.focus() }} />}
         <button className={`summarize ${BTN} mt-auto`}
                 onClick={() => sendComposed('Summarize this session.')}>summarize</button>
       </div>

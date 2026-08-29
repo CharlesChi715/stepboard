@@ -65,6 +65,20 @@ The browser opens the vite column; the uvicorn column is the API behind it
 | Enter | send · Shift+Enter = newline |
 | ↑ / ↓ | walk the last 5 messages, once the caret hits the edge |
 
+## /branch — where this conversation forked
+
+The `branch` button (or typing `/branch` in the box) draws the CLI session's
+own tree. Not git: a Claude Code transcript is a tree of `uuid`/`parentUuid`,
+and it forks when you interrupt or edit a prompt and send a different one —
+the prompt you abandoned stays in the file. The dropped side is struck
+through, the side that continued is `●`; click either to put it back in the
+input. Most sessions never fork, so the root alone is the normal answer.
+
+The panel reads the exact session running beside it: `claude-s` mints a UUID
+and hands it to both `claude --session-id` and the API. A session started
+before this existed falls back to newest-by-mtime, and the view tells you so —
+restart `claude-s` to get an exact match.
+
 ## Files
 
 - `serve.py` — FastAPI app, three jobs: `GET /config` says which ttyd/tmux pair,

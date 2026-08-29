@@ -12,7 +12,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
-    proxy: { '/config': API, '/send': API },
+    proxy: { '/config': API, '/send': API, '/branches': API },
   },
   build: { outDir: 'dist', emptyOutDir: true },
 })
