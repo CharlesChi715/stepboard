@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles      # its static-file server (your 
 from pydantic import BaseModel                   # JSON-contract library FastAPI uses
 import subprocess                                # unchanged — the tmux door
 import os                                        # to read the env vars claude-s passes down
+import sys                                       # for the single-write log line in /send
 
 app = FastAPI()                                  # THE app — what "serve:app" points at
 
@@ -24,7 +25,10 @@ class Send(BaseModel):                           # declares what /send's body mu
 
 @app.post("/send")                               # route: POST /send → the function below
 def send(body: Send):                            # body arrives already parsed + validated
-    print(f"POST /send  {body.text!r}")          # one line per send, so the log stays readable
+    # one write, not print(): under claude-s stdout is an unbuffered pipe shared
+    # with uvicorn's access log, and print()'s separate '\n' write lets a
+    # concurrent log record splice into the middle of this line
+    sys.stdout.write(f"POST /send  {body.text!r}\n")
     subprocess.run(["tmux", "send-keys", "-t", SESSION, "-l", "--", body.text])
     subprocess.run(["tmux", "send-keys", "-t", SESSION, "Enter"])
     return {"ok": True}                          # auto-JSON, status 200
