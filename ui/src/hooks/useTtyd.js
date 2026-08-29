@@ -120,6 +120,7 @@ export function useTtyd({ onSelection } = {}) {
   const takeSelection = useCallback(() => {
     const term = termRef.current
     const picked = ((term && term.getSelection()) || lastSel.current || '').replace(/\s+$/, '')
+    term?.clearSelection()                    // consumed — drop the highlight (lastSel keeps the text)
     return picked
   }, [])
 

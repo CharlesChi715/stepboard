@@ -227,3 +227,20 @@
   the page to prove localStorage survived, and leaves a prompt behind.
 - 42/42 green on a throwaway stack (ttyd 7691 / uvicorn 8011).
 - Branch: feat/new-prompt-btn.
+
+## 2026-08-29 — ⌘⇧L clears the terminal highlight
+
+- Ask (Charles): the highlighted strip should disappear once the selected text
+  has landed in the input box.
+- One line in `useTtyd.takeSelection`: `term?.clearSelection()` after `picked`
+  is computed. Put there, not in `App.grab`, because that function IS the
+  "consume the selection" step and `term` is only in scope inside the hook.
+- Safe for the fallback path: `onSelectionChange` only stores non-empty
+  selections into `lastSel`, so clearing never wipes the remembered text — a
+  second ⌘⇧L still pastes the same string, just without a stale highlight.
+- New drag-select check `highlight clears after ⌘⇧L` counts
+  `.term .xterm-selection div` and expects 0. Negative control run: with the
+  fix commented out it FAILs at 2 divs, so the check has teeth.
+- 43/43 green (32 parity + 5 regressions + 6 drag-select) on a throwaway stack
+  (ttyd 7691 / uvicorn 8011, `ui/dist` built first).
+- Branch: worktree-grab-clears-selection → merged to main.
