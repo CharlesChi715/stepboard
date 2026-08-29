@@ -57,12 +57,15 @@ stepboard/
 - The panel draws the terminal itself with xterm.js (no iframe), so the terminal
   selection is readable — that is what ⌘⇧L needs.
 - Selection → input is keyboard-only: the "take terminal selection" button is
-  gone, ⌘⇧L remains.
+  gone, ⌘⇧L remains. Grabbing consumes the selection — `takeSelection` calls
+  `term.clearSelection()`, so the highlight strip disappears once the text is in
+  the input. `lastSel` still holds it, so a repeat ⌘⇧L pastes the same text.
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 42 headless checks pass (32 parity + 5
-  regression + 5 drag-select), run via `npm test`, non-zero exit on failure.
+- UI is React + Vite + Tailwind; 43 headless checks pass (32 parity + 5
+  regression + 6 drag-select), run via `npm test`, non-zero exit on failure.
+  They need a live stack on `SB_BASE` (default :8011) serving a built `ui/dist`.
 - Prompts come from `usePrompts`: `BUILTIN` ships in the file, yours are made
   with the `+ new` button and kept in localStorage (`sb-prompts`). Labels are
   the identity — App arms by label — so a duplicate is refused, not shadowed.

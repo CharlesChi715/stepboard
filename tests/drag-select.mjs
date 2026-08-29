@@ -37,6 +37,11 @@ await suite('drag-select', async ({ page, ok }) => {
   const val = await page.inputValue('.panel textarea')
   ok('⌘⇧L grabs that selection', val.length > 0, JSON.stringify(val.slice(0, 40)))
 
+  // grabbing consumes the selection: the strip must not linger in the terminal
+  const leftover = await page.evaluate(() =>
+    document.querySelectorAll('.term .xterm-selection div').length)
+  ok('highlight clears after ⌘⇧L', leftover === 0, `${leftover} divs`)
+
   const cursor = await page.evaluate(() => {
     const el = document.querySelector('.term .xterm-screen')
     return el ? getComputedStyle(el).cursor : 'no-el'
