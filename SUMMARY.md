@@ -27,7 +27,7 @@ stepboard/
 - Mentor mode: Claude gives ≤2-line steps; Charles does the work himself and
   Claude only writes code when explicitly asked.
 
-## Current state (2026-08-25)
+## Current state (2026-08-29)
 
 - Styling is Tailwind v4 (`@tailwindcss/vite`). `styles.css` is just the Tailwind
   import + an `@theme` palette; shared class strings live in `ui/src/lib/ui.js`.
@@ -51,6 +51,9 @@ stepboard/
 - `.prompts` no longer needs `!important` — a fieldset carries its own classes.
 - Stack: `./bin/claude-s` → ttyd+tmux (`sbN`, :768N) + FastAPI (:800N, `--reload`)
   + vite dev server (:5172+N, HMR) — browser opens vite; everything hot-reloads.
+- claude-s tags each child's output with a colored `label │` prefix (ttyd/api/
+  vite), strips timestamp+N:/INFO: noise, keeps W:/E:, prints a ports banner.
+  Vite's stream is visible (was >/dev/null); ⌘⇧L leaves the caret on a fresh line.
 - The panel draws the terminal itself with xterm.js (no iframe), so the terminal
   selection is readable — that is what ⌘⇧L needs.
 - Selection → input is keyboard-only: the "take terminal selection" button is

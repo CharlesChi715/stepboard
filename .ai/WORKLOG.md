@@ -227,3 +227,20 @@
   the page to prove localStorage survived, and leaves a prompt behind.
 - 42/42 green on a throwaway stack (ttyd 7691 / uvicorn 8011).
 - Branch: feat/new-prompt-btn.
+
+## 2026-08-29 — ⌘⇧L trailing newline; claude-s learns to label its output
+
+- grab() now appends a trailing \n in both branches, so after ⌘⇧L the caret
+  lands on a fresh blank line instead of mid-line (App.jsx:42, 1017fbb).
+- bin/claude-s: every child pipes through tag() — colored aligned `label |`
+  per line (ttyd/api/vite), timestamps + N:/INFO: stripped, W:/E: kept, and a
+  one-line ports banner. Vite is no longer >/dev/null — HMR lines and failures
+  (e.g. missing node_modules) are finally visible. PYTHONUNBUFFERED=1 keeps
+  POST /send lines live now that stdout is a pipe; serve.py logs /send with a
+  single sys.stdout.write so an access-log record cannot splice mid-line.
+- Adversarially reviewed (3 lenses, findings verified on BSD awk + zsh):
+  survivors are all edge cases — orphaned taggers can outlive Ctrl-C only if a
+  producer ignores SIGINT; vite gained terminal backpressure vs /dev/null.
+- Mystery solved: stale ui/dist (not broken HMR) was why ⌘⇧L showed no newline
+  on the :800N panel — dist rebuilt; it now carries grab-fix + prompt button.
+- Branch worktree-claude-s-labeled-output (683cbd0), merged to main.
