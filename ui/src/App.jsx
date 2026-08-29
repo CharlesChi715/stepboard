@@ -39,7 +39,7 @@ export default function App() {
   const grab = useCallback(() => {
     const picked = takeSelection()
     if (!picked) return flash('⌘⇧L: nothing selected', true)
-    setMsg(prev => (prev.trim() ? prev.replace(/\s*$/, '') + '\n' + picked : picked))
+    setMsg(prev => (prev.trim() ? prev.replace(/\s*$/, '') + '\n' + picked + '\n': picked + '\n'))
     const el = inputRef.current
     el?.focus()
     requestAnimationFrame(() => el?.setSelectionRange(el.value.length, el.value.length))
