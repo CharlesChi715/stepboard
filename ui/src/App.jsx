@@ -22,7 +22,23 @@ export default function App() {
   const inputRef = useRef(null)
   const noteTimer = useRef(0)
   const { hist, save } = useHistory()
-  const { prompts, add: addPrompt } = usePrompts()
+  const { prompts, add: addPrompt, update, remove } = usePrompts()
+
+  // `armed` holds labels, so a rename has to be carried over to it or an armed
+  // prompt would silently stop being appended; a delete has to be swept out of
+  // it or re-making that label later would come back pre-armed. Both forward
+  // the hook's rejection reason untouched, so the form still shows it inline.
+  const editPrompt = useCallback((label, nextLabel, nextText) => {
+    const why = update(label, nextLabel, nextText)
+    if (!why) setArmed(a => a.map(x => (x === label ? nextLabel.trim() : x)))
+    return why
+  }, [update])
+
+  const deletePrompt = useCallback(label => {
+    const why = remove(label)
+    if (!why) setArmed(a => a.filter(x => x !== label))
+    return why
+  }, [remove])
 
   const flash = useCallback((text, bad) => {
     setNote({ text, bad })
@@ -103,6 +119,7 @@ export default function App() {
         <Format chart={chart} onChart={setChart} />
         <Edits lines={lines} onLines={setLines} />
         <Prompts prompts={prompts} armed={armed} onAdd={addPrompt}
+                 onUpdate={editPrompt} onDelete={deletePrompt}
                  onToggle={label => setArmed(a =>
                    a.includes(label) ? a.filter(x => x !== label) : [...a, label])} />
 

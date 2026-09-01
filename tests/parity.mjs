@@ -149,4 +149,79 @@ await suite('parity', async ({ page, ok }) => {
   await page.waitForTimeout(200)
   ok('duplicate label refused', /already exists/.test(
        await page.locator('.prompts form .text-danger').textContent().catch(() => '')))
+
+  // 12 — editing and deleting a prompt. Runs on the `tdd` that 11 left behind
+  // and ends by removing it, so the panel is back to built-ins only.
+  await page.locator('.prompts form button', { hasText: /^cancel$/ }).click()
+  await page.waitForTimeout(150)
+
+  // armed FIRST, so the rename below has an armed label to carry over
+  await page.locator('.prompts button', { hasText: /^tdd$/ }).click()
+  await page.click('.edit-prompts'); await page.waitForTimeout(150)
+  ok('edit mode explains itself', await page.locator('.prompts .hint').first().isVisible())
+
+  // force: aria-disabled makes Playwright refuse a normal click, which is the
+  // point — the check is that pressing anyway still opens nothing.
+  const pro = page.locator('.prompts button', { hasText: /^pro$/ })
+  await pro.click({ force: true }); await page.waitForTimeout(150)
+  ok('built-ins are not editable', await pro.getAttribute('aria-disabled') === 'true'
+                                && await page.locator('.prompts form').count() === 0)
+
+  await page.locator('.prompts button', { hasText: /^tdd$/ }).click()
+  await page.waitForTimeout(150)
+  const efm = page.locator('.prompts form')
+  ok('editing prefills the form',
+     await efm.locator('input[type=text]').inputValue() === 'tdd' &&
+     await efm.locator('textarea').inputValue() === 'Write the test first.')
+
+  await efm.locator('input[type=text]').fill('pro')
+  await efm.locator('button[type=submit]').click(); await page.waitForTimeout(200)
+  ok('rename onto an existing label refused', /already exists/.test(
+       await efm.locator('.text-danger').textContent().catch(() => '')))
+
+  await efm.locator('input[type=text]').fill('tdd2')
+  await efm.locator('textarea').fill('Red, green, refactor.')
+  await efm.locator('button[type=submit]').click(); await page.waitForTimeout(200)
+  ok('edit renames the prompt', await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 1
+                             && await page.locator('.prompts button', { hasText: /^tdd$/ }).count() === 0)
+
+  await page.click('.edit-prompts'); await page.waitForTimeout(150)   // done
+  sent.length = 0
+  await page.fill('.panel textarea', 'after edit'); await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  ok('edited text is what gets appended', /Red, green, refactor\./.test(sent[0]?.text || ''))
+  ok('rename keeps the prompt armed', !/Write the test first\./.test(sent[0]?.text || ''))
+
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('edit survives reload', await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 1)
+
+  await page.click('.edit-prompts'); await page.waitForTimeout(150)
+  await page.locator('.prompts button', { hasText: /^tdd2$/ }).click(); await page.waitForTimeout(150)
+  await page.click('.prompt-delete'); await page.waitForTimeout(150)
+
+  // Escape unwinds one layer at a time: confirm → form → mode. The middle step
+  // only works because closing the form hands focus back to the chip.
+  await page.keyboard.press('Escape'); await page.waitForTimeout(150)
+  ok('Escape backs out of the delete confirm',
+     await page.locator('.prompt-delete').textContent() === 'delete')
+  await page.keyboard.press('Escape'); await page.waitForTimeout(150)
+  ok('Escape then closes the form', await page.locator('.prompts form').count() === 0)
+  await page.keyboard.press('Escape'); await page.waitForTimeout(150)
+  ok('Escape then leaves edit mode',
+     await page.locator('.edit-prompts').textContent() === 'edit')
+
+  await page.click('.edit-prompts'); await page.waitForTimeout(150)
+  await page.locator('.prompts button', { hasText: /^tdd2$/ }).click(); await page.waitForTimeout(150)
+  await page.click('.prompt-delete'); await page.waitForTimeout(150)
+  ok('first delete press only arms', await page.locator('.prompt-delete').textContent() === 'sure?'
+                                  && await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 1)
+
+  await page.click('.prompt-delete'); await page.waitForTimeout(200)
+  ok('second delete press removes it',
+     await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 0)
+  ok('edit mode retires with the last custom prompt',
+     await page.locator('.edit-prompts').count() === 0)
+
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('delete survives reload', await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 0)
 })
