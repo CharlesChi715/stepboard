@@ -32,20 +32,29 @@ export const BTN_ON =
   'text-armed transition-colors hover:bg-armed/25 ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
 
-// A custom prompt while the row is in `edit` mode. It is no longer a toggle but
-// a target, so it drops the armed blue entirely — dashed says "not a switch",
+// A prompt while the row is in `edit` mode. It is no longer a toggle but a
+// target, so it drops the armed blue entirely — dashed says "not a switch",
 // green says "safe to press". A whole alternative to BTN/BTN_ON, never appended.
 export const BTN_TARGET =
   'cursor-pointer touch-manipulation rounded-md border border-dashed border-good/60 ' +
   'bg-good/10 px-2.5 py-1.5 text-good transition-colors hover:bg-good/20 ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-good/60'
 
-// A built-in in `edit` mode. Still there — seeing them is how you learn which
-// prompts are fixed — but recessed to the card's own colour, so it reads as
-// part of the background rather than as something waiting to be pressed.
-export const BTN_LOCKED =
-  'cursor-default touch-manipulation rounded-md border border-edge-soft bg-card px-2.5 py-1.5 ' +
-  'text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+// A control that acts ON the prompts (+ new · edit · restore) rather than
+// being one. It sits in its own row above the chips AND is smaller and quieter
+// than any chip: same row plus same chrome made the two too easy to confuse.
+// Bordered but transparent, so it takes no ink until you reach for it.
+export const BTN_ACTION =
+  'cursor-pointer touch-manipulation rounded-md border border-transparent bg-transparent px-2 py-1 ' +
+  'text-[11px] text-muted transition-colors hover:bg-control hover:text-ink ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+
+// …the same control while its mode is on. Tinted, not solid — it is still a
+// secondary control, so it must not out-shout an armed prompt or Send.
+export const BTN_ACTION_ON =
+  'cursor-pointer touch-manipulation rounded-md border border-armed/50 bg-armed/15 px-2 py-1 ' +
+  'text-[11px] text-armed transition-colors hover:bg-armed/25 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
 
 // The second press of a two-press delete. Red is spent here and nowhere else,
 // so it only ever appears on the one control that destroys something.
@@ -65,8 +74,10 @@ export const HINT = 'text-[11px] leading-snug text-muted'
 // job. Only `edits` draws one, because there it carries meaning (the mood).
 const FIELD = 'rounded-lg border bg-card px-3 pt-2 pb-3'   // the frame, minus its colour
 export const FIELDSET = `${FIELD} flex flex-col gap-2 border-transparent`
-// prompts wrap into rows — its own direction, and no `!important` to win it
-export const FIELDSET_ROW = `${FIELD} flex flex-row flex-wrap gap-2 border-transparent`
+// The prompt chips, which wrap into rows. A row INSIDE the prompts card now,
+// not the card itself: the card stacks an actions row above the chips, and the
+// two must not share a direction or a control ever reads as a prompt.
+export const CHIP_ROW = 'chips flex flex-row flex-wrap gap-2'
 // edits supplies its own border colour every time, transparent included, so the
 // mood frame appears in place — the width is always there, nothing reflows
 export const FIELDSET_BARE = `${FIELD} flex flex-col gap-2`
