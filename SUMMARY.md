@@ -63,30 +63,41 @@ stepboard/
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 58 headless checks pass (47 parity + 5
+- UI is React + Vite + Tailwind; 71 headless checks pass (60 parity + 5
   regression + 6 drag-select), run via `npm test`, non-zero exit on failure.
   They need a live stack on `SB_BASE` (default :8011) serving a built `ui/dist`.
-- Prompts come from `usePrompts`: `BUILTIN` ships in the file, yours are made
-  with the `+ new` button and kept in localStorage (`sb-prompts`). Labels are
-  the identity — App arms by label — so a duplicate is refused, not shadowed.
-  The form carries `data-own-enter`: App's Enter-sends handler is a document
-  CAPTURE listener, so only App can decline it.
-- Editing/deleting a prompt sits behind an `edit` mode button beside `+ new`,
-  not a ✎/× pair per chip: the panel is 15rem, so icons inside a chip would
-  shrink the arm target and put "delete" one slip from "arm". In the mode your
-  prompts are dashed-green targets (`BTN_TARGET`) and built-ins recede
-  (`BTN_LOCKED`) — `aria-disabled`, never `disabled`, because a real disabled
-  button eats the hover that shows a prompt's text. Pressing one reopens the
-  `+ new` form with save/cancel/delete; delete takes two presses (`sure?`,
-  `BTN_DANGER`) and needs no dialog since the form shows what you would lose.
+- There is ONE kind of prompt. `BUILTIN` is a seed for a fresh browser, not a
+  fixture: once seeded, a shipped prompt edits, renames and deletes like any
+  you make. Labels are the identity — App arms by label — so a duplicate is
+  refused, not shadowed. The form carries `data-own-enter`: App's Enter-sends
+  handler is a document CAPTURE listener, so only App can decline it.
+- Store is `sb-prompts` = `{ list, seeded }`. `list` is every prompt in row
+  order (nothing is prepended at render time, or a seed could never be moved or
+  removed). `seeded` is the seed labels this browser has been handed — without
+  it `list` alone cannot tell "I deleted `pro`" from "`pro` was added to the
+  source later", so a new seed could never arrive or a deleted one would come
+  back every load. A bare array is the v1 store and migrates on read.
+- The PROMPTS card is two levels: an actions row (`+ new` · `edit` · `restore`,
+  `BTN_ACTION`, small and muted) ABOVE the chips row (`CHIP_ROW`). They used to
+  share one wrap row and one style, which made a control read as a prompt.
+- `edit` mode, not a ✎/× per chip: the panel is 15rem, so icons inside a chip
+  would shrink the arm target and put "delete" one slip from "arm". In the mode
+  every chip is a dashed-green target (`BTN_TARGET`) and pressing one reopens
+  the `+ new` form with save/cancel/delete. Delete takes two presses (`sure?`,
+  `BTN_DANGER`) and needs no dialog — the form shows what you would lose.
   Escape unwinds confirm → form → mode, which only works because closing the
-  form focuses its chip again. The mode is hidden when you own no prompts.
-- `usePrompts` is add/update/remove over one `commit`; update edits in place, so
-  fixing a typo never sends a prompt to the end of the row. App wraps
+  form focuses its chip again.
+- `restore N` appears only when a seed is missing, and is the ONLY way back
+  from deleting a shipped prompt. So the mode stays reachable on an empty row
+  (`canManage = prompts.length || missing`) — guarding on length alone would
+  hide the one control that undoes deleting everything.
+- `usePrompts` is add/update/remove/restore over one `commit`; update edits in
+  place, so fixing a typo never sends a prompt to the end of the row. App wraps
   update/remove to carry a rename into `armed` and sweep a delete out of it.
-- `HINT` carries no `basis-full`: flex-basis is the MAIN axis, so it means full
-  width in the wrapping prompts row but full HEIGHT in the flex-col form. The
-  row adds it at the call site.
+- No `basis-full` anywhere in the prompts card now that it is flex-COL: it once
+  opened a ~100px hole in the form, because flex-basis is the MAIN axis — full
+  width in a wrapping row, full HEIGHT in a column. Only the chips row is
+  flex-row, and its children are chips.
 - Drag in the terminal selects text even while Claude Code has mouse reporting
   on: mouse events are re-dispatched as alt-carrying clones (force selection).
   Never force shift too — that makes xterm extend a selection instead of

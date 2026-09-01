@@ -313,3 +313,49 @@
 - Note: the worktree branched from a stale origin/main and was rebased onto
   local main before merging.
 - Branch: worktree-prompt-edit-delete → merged to main.
+
+## 2026-09-01 — every prompt is the same prompt
+- Charles: "make every prompts same editable." The built-in/custom split went
+  away entirely rather than growing a second set of rules.
+- The split existed only because localStorage held the TAIL (your prompts) and
+  BUILTIN was prepended at render time. Anything prepended at render can never
+  be edited, reordered or removed. So the store now holds the whole list.
+- Which raises the two questions that split was hiding, and both had to be
+  answered on disk, not in code:
+  1. If `list` is everything, a BUILTIN added to the source later can never
+     reach a browser that already seeded — `list` alone cannot tell "I deleted
+     `pro`" from "`pro` is new".
+  2. Built-ins become deletable, and the seed is the only copy of their text.
+- (1) → store `seeded`: the seed labels this browser has been handed. A BUILTIN
+  label absent from it is new and gets appended once; one present in it was
+  retired and stays gone. Two parity checks pin exactly this pair.
+- (2) → `restore N`, which appears only while a seed is missing and appends
+  only what is absent. An edited prompt keeps its edit (it is still there under
+  that label); delete it first to get the original text back.
+- Hole found while writing the test for it: delete EVERY prompt and a
+  `prompts.length > 0` guard hid the edit button — and `restore` lives inside
+  edit mode, so the one control that undoes it became unreachable. Guard is now
+  `prompts.length || missing`, and the empty row's hint says how to recover.
+- v1 store (a bare array of only your prompts) migrates on read, in load(),
+  without writing back — a page load stays read-only, and the migration is
+  idempotent so nothing is lost if you never mutate.
+- Charles, mid-turn: "put +new and edit btn one level up (rn its easy to mix up
+  with prompts)." Correct — they sat in the SAME wrap row with the SAME `BTN`
+  chrome as the chips, so a control read as a prompt. The card is now two
+  levels: an actions row (`BTN_ACTION` — smaller, muted, transparent until
+  hovered) above a `CHIP_ROW`. `FIELDSET_ROW` is gone; the card is `FIELDSET`
+  (flex-col) and the chips are a row inside it.
+- Knock-on: actions now come FIRST in DOM order, so `.prompts button` no longer
+  lands on a prompt. Every chip lookup in parity.mjs is scoped to
+  `.prompts .chips button`, which says what it means anyway.
+- Knock-on 2: with the card flex-col, `basis-full` is wrong everywhere in it
+  (flex-basis is the main axis → full HEIGHT). Removed from the hint and the
+  form; only the chips row is flex-row now.
+- `BTN_LOCKED` deleted — nothing is locked any more.
+- 71/71 green (60 parity + 5 regressions + 6 drag-select) on a throwaway stack
+  (ttyd 7696 / uvicorn 8017). 13 new parity checks: a shipped prompt edits and
+  deletes, restore appears/counts/retires, delete-everything stays recoverable,
+  v1 migration, and the new-seed-arrives / retired-seed-stays-gone pair.
+- Note: the worktree branched from a stale origin/main again and was rebased
+  onto local main before merging. Worth watching if it keeps happening.
+- Branch: worktree-prompts-all-editable → merged to main.

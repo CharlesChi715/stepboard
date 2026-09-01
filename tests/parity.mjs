@@ -61,7 +61,7 @@ await suite('parity', async ({ page, ok }) => {
   // 6 — prompts arm/disarm. The snippet is a hover preview, not a status line,
   // so every snippet is always in the DOM — armed state is proven by what gets
   // sent, never by the snippet being on screen.
-  const proBtn = page.locator('.prompts button').first()
+  const proBtn = page.locator('.prompts .chips button').first()
   const snippet = page.locator('.snippet').first()
   await proBtn.hover(); await page.waitForTimeout(150)
   ok('snippet previews on hover', await snippet.isVisible())
@@ -128,7 +128,7 @@ await suite('parity', async ({ page, ok }) => {
   await form.locator('textarea').fill('Write the test first.')
   await form.locator('button[type=submit]').click()
   await page.waitForTimeout(200)
-  const tdd = page.locator('.prompts button', { hasText: /^tdd$/ })
+  const tdd = page.locator('.prompts .chips button', { hasText: /^tdd$/ })
   ok('new prompt appears', await tdd.count() === 1)
   ok('form closes after adding', await page.locator('.prompts form').count() === 0)
 
@@ -140,7 +140,7 @@ await suite('parity', async ({ page, ok }) => {
 
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
   ok('new prompt survives reload',
-     await page.locator('.prompts button', { hasText: /^tdd$/ }).count() === 1)
+     await page.locator('.prompts .chips button', { hasText: /^tdd$/ }).count() === 1)
 
   await page.click('.new-prompt'); await page.waitForTimeout(150)
   await page.locator('.prompts form input[type=text]').fill('tdd')
@@ -156,18 +156,19 @@ await suite('parity', async ({ page, ok }) => {
   await page.waitForTimeout(150)
 
   // armed FIRST, so the rename below has an armed label to carry over
-  await page.locator('.prompts button', { hasText: /^tdd$/ }).click()
+  await page.locator('.prompts .chips button', { hasText: /^tdd$/ }).click()
   await page.click('.edit-prompts'); await page.waitForTimeout(150)
   ok('edit mode explains itself', await page.locator('.prompts .hint').first().isVisible())
 
-  // force: aria-disabled makes Playwright refuse a normal click, which is the
-  // point — the check is that pressing anyway still opens nothing.
-  const pro = page.locator('.prompts button', { hasText: /^pro$/ })
-  await pro.click({ force: true }); await page.waitForTimeout(150)
-  ok('built-ins are not editable', await pro.getAttribute('aria-disabled') === 'true'
-                                && await page.locator('.prompts form').count() === 0)
+  // A shipped prompt is an ordinary prompt: it opens in the same form.
+  const pro = page.locator('.prompts .chips button', { hasText: /^pro$/ })
+  await pro.click(); await page.waitForTimeout(150)
+  ok('a shipped prompt edits like any other',
+     await page.locator('.prompts form input[type=text]').inputValue() === 'pro')
+  await page.locator('.prompts form button', { hasText: /^cancel$/ }).click()
+  await page.waitForTimeout(150)
 
-  await page.locator('.prompts button', { hasText: /^tdd$/ }).click()
+  await page.locator('.prompts .chips button', { hasText: /^tdd$/ }).click()
   await page.waitForTimeout(150)
   const efm = page.locator('.prompts form')
   ok('editing prefills the form',
@@ -182,8 +183,8 @@ await suite('parity', async ({ page, ok }) => {
   await efm.locator('input[type=text]').fill('tdd2')
   await efm.locator('textarea').fill('Red, green, refactor.')
   await efm.locator('button[type=submit]').click(); await page.waitForTimeout(200)
-  ok('edit renames the prompt', await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 1
-                             && await page.locator('.prompts button', { hasText: /^tdd$/ }).count() === 0)
+  ok('edit renames the prompt', await page.locator('.prompts .chips button', { hasText: /^tdd2$/ }).count() === 1
+                             && await page.locator('.prompts .chips button', { hasText: /^tdd$/ }).count() === 0)
 
   await page.click('.edit-prompts'); await page.waitForTimeout(150)   // done
   sent.length = 0
@@ -193,10 +194,10 @@ await suite('parity', async ({ page, ok }) => {
   ok('rename keeps the prompt armed', !/Write the test first\./.test(sent[0]?.text || ''))
 
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
-  ok('edit survives reload', await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 1)
+  ok('edit survives reload', await page.locator('.prompts .chips button', { hasText: /^tdd2$/ }).count() === 1)
 
   await page.click('.edit-prompts'); await page.waitForTimeout(150)
-  await page.locator('.prompts button', { hasText: /^tdd2$/ }).click(); await page.waitForTimeout(150)
+  await page.locator('.prompts .chips button', { hasText: /^tdd2$/ }).click(); await page.waitForTimeout(150)
   await page.click('.prompt-delete'); await page.waitForTimeout(150)
 
   // Escape unwinds one layer at a time: confirm → form → mode. The middle step
@@ -211,17 +212,74 @@ await suite('parity', async ({ page, ok }) => {
      await page.locator('.edit-prompts').textContent() === 'edit')
 
   await page.click('.edit-prompts'); await page.waitForTimeout(150)
-  await page.locator('.prompts button', { hasText: /^tdd2$/ }).click(); await page.waitForTimeout(150)
+  await page.locator('.prompts .chips button', { hasText: /^tdd2$/ }).click(); await page.waitForTimeout(150)
   await page.click('.prompt-delete'); await page.waitForTimeout(150)
   ok('first delete press only arms', await page.locator('.prompt-delete').textContent() === 'sure?'
-                                  && await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 1)
+                                  && await page.locator('.prompts .chips button', { hasText: /^tdd2$/ }).count() === 1)
 
   await page.click('.prompt-delete'); await page.waitForTimeout(200)
   ok('second delete press removes it',
-     await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 0)
-  ok('edit mode retires with the last custom prompt',
-     await page.locator('.edit-prompts').count() === 0)
+     await page.locator('.prompts .chips button', { hasText: /^tdd2$/ }).count() === 0)
+
+  // 13 — a shipped prompt deletes too, and `restore` is the way back. The
+  // button only exists while something is actually missing.
+  ok('no restore button while nothing is missing',
+     await page.locator('.restore-prompts').count() === 0)
+  await page.locator('.prompts .chips button', { hasText: /^socratic$/ }).click(); await page.waitForTimeout(150)
+  await page.click('.prompt-delete'); await page.click('.prompt-delete'); await page.waitForTimeout(200)
+  ok('a shipped prompt deletes',
+     await page.locator('.prompts .chips button', { hasText: /^socratic$/ }).count() === 0)
+  ok('restore appears and counts what is gone',
+     /restore\s*1/.test(await page.locator('.restore-prompts').textContent()))
 
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
-  ok('delete survives reload', await page.locator('.prompts button', { hasText: /^tdd2$/ }).count() === 0)
+  ok('a deleted shipped prompt stays deleted',
+     await page.locator('.prompts .chips button', { hasText: /^socratic$/ }).count() === 0)
+
+  await page.click('.edit-prompts'); await page.waitForTimeout(150)
+  await page.click('.restore-prompts'); await page.waitForTimeout(200)
+  ok('restore puts it back', await page.locator('.prompts .chips button', { hasText: /^socratic$/ }).count() === 1)
+  ok('restore retires once nothing is missing',
+     await page.locator('.restore-prompts').count() === 0)
+
+  // 14 — delete every prompt. The mode must stay reachable, or `restore` (which
+  // lives inside it) would be the one control you can never get back to.
+  for (const l of ['pro', 'socratic', 'first principles']) {
+    await page.locator('.prompts .chips button', { hasText: new RegExp(`^${l}$`) }).click()
+    await page.waitForTimeout(120)
+    await page.click('.prompt-delete'); await page.click('.prompt-delete')
+    await page.waitForTimeout(180)
+  }
+  ok('every prompt can be deleted',
+     await page.locator('.prompts .group').count() === 0)
+  ok('edit mode survives an empty row', await page.locator('.edit-prompts').count() === 1)
+  ok('the empty row says how to recover',
+     /restore/.test(await page.locator('.prompts .hint').first().textContent()))
+  await page.click('.restore-prompts'); await page.waitForTimeout(250)
+  ok('restore brings them all back', await page.locator('.prompts .group').count() === 3)
+
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('delete survives reload', await page.locator('.prompts .chips button', { hasText: /^tdd2$/ }).count() === 0)
+
+  // 15 — a browser still holding the v1 store (a bare array of only YOUR
+  // prompts, with the shipped ones implicit in front) reads as one flat list.
+  await page.evaluate(() => localStorage.setItem('sb-prompts',
+    JSON.stringify([{ label: 'legacy', text: 'from the old shape' }])))
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('v1 store migrates to one flat list', await page.locator('.prompts .group').count() === 4
+     && await page.locator('.prompts .chips button', { hasText: /^legacy$/ }).count() === 1)
+  await page.click('.edit-prompts'); await page.waitForTimeout(150)
+  await page.locator('.prompts .chips button', { hasText: /^pro$/ }).click(); await page.waitForTimeout(150)
+  ok('a migrated shipped prompt is editable',
+     await page.locator('.prompts form input[type=text]').inputValue() === 'pro')
+
+  // 16 — the two halves of why `seeded` is stored. A BUILTIN label absent from
+  // it is new and must arrive; one present in it was retired and must not.
+  await page.evaluate(() => localStorage.setItem('sb-prompts', JSON.stringify({
+    list: [{ label: 'mine', text: 'only mine' }], seeded: ['pro', 'socratic'] })))
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('a newly shipped prompt reaches an existing browser',
+     await page.locator('.prompts .chips button', { hasText: /^first principles$/ }).count() === 1)
+  ok('a retired shipped prompt is not resurrected',
+     await page.locator('.prompts .chips button', { hasText: /^pro$/ }).count() === 0)
 })

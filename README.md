@@ -84,21 +84,33 @@ The original vanilla-JS page this replaced lives in git history:
 
 ## Customize
 
-Add a prompt button from the panel: **+ new** in the PROMPTS card opens a
-label + text form. Yours are kept in `localStorage` (`sb-prompts`), so they
-survive reloads — no rebuild, no file to edit.
+Every prompt is the same kind of thing — the ones that ship are seeds, not
+fixtures, so they edit and delete exactly like the ones you make. The whole
+list lives in `localStorage` (`sb-prompts`); no rebuild, no file to edit.
 
-**edit** (next to `+ new`, and only there once you own a prompt) flips the row
-into edit mode: your prompts turn into dashed green targets, the built-ins grey
-out, and pressing one opens it in the same form with **save**, **cancel** and
-**delete**. Delete takes two presses — the second says `sure?`. `Esc` backs out
-of the confirm, then the form, then the mode; **done** leaves it too.
+The PROMPTS card is two levels. The controls sit in their own row above the
+chips, quieter and smaller, so a control is never mistaken for a prompt:
 
-Editing rather than icon-per-chip is deliberate: the panel is 15rem wide, so a
-✎/× pair inside a chip would shrink the arm target and put "delete" one slip
-away from "arm".
+```
+PROMPTS
+  + new   edit   restore 2       ← controls (small, muted)
+  [pro] [socratic] [tdd]         ← the prompts themselves
+```
 
-To ship one with the app instead, add it to `BUILTIN` in
+- **+ new** opens a label + text form.
+- **edit** flips the chips into targets (dashed green); pressing one opens it
+  in that same form with **save**, **cancel** and **delete**. Delete takes two
+  presses — the second reads `sure?`. `Esc` backs out of the confirm, then the
+  form, then the mode; **done** leaves it too.
+- **restore N** only appears when one of the shipped prompts is missing, and
+  puts back exactly the missing ones. It leaves an edited prompt alone — delete
+  it first if you want the original text back.
+
+A mode rather than a ✎/× per chip is deliberate: the panel is 15rem wide, so
+icons inside a chip would shrink the arm target and put "delete" one slip away
+from "arm".
+
+To change what a *fresh* browser starts with, edit `BUILTIN` in
 `ui/src/hooks/usePrompts.js`:
 
 ```js
@@ -108,8 +120,12 @@ export const BUILTIN = [
 ]
 ```
 
+Adding one here still reaches a browser that has already been seeded: the store
+remembers which seed labels it has been handed, so a genuinely new one arrives
+once, while one you deleted stays deleted. Rebuild with `npm run build`.
+
 Click a button to *arm* it (turns blue); armed texts ride along with the next
-send. Rebuild with `npm run build`.
+send.
 
 ## Security
 
