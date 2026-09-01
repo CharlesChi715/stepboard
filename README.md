@@ -88,6 +88,16 @@ Add a prompt button from the panel: **+ new** in the PROMPTS card opens a
 label + text form. Yours are kept in `localStorage` (`sb-prompts`), so they
 survive reloads — no rebuild, no file to edit.
 
+**edit** (next to `+ new`, and only there once you own a prompt) flips the row
+into edit mode: your prompts turn into dashed green targets, the built-ins grey
+out, and pressing one opens it in the same form with **save**, **cancel** and
+**delete**. Delete takes two presses — the second says `sure?`. `Esc` backs out
+of the confirm, then the form, then the mode; **done** leaves it too.
+
+Editing rather than icon-per-chip is deliberate: the panel is 15rem wide, so a
+✎/× pair inside a chip would shrink the arm target and put "delete" one slip
+away from "arm".
+
 To ship one with the app instead, add it to `BUILTIN` in
 `ui/src/hooks/usePrompts.js`:
 

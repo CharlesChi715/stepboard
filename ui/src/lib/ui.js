@@ -32,6 +32,34 @@ export const BTN_ON =
   'text-armed transition-colors hover:bg-armed/25 ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
 
+// A custom prompt while the row is in `edit` mode. It is no longer a toggle but
+// a target, so it drops the armed blue entirely — dashed says "not a switch",
+// green says "safe to press". A whole alternative to BTN/BTN_ON, never appended.
+export const BTN_TARGET =
+  'cursor-pointer touch-manipulation rounded-md border border-dashed border-good/60 ' +
+  'bg-good/10 px-2.5 py-1.5 text-good transition-colors hover:bg-good/20 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-good/60'
+
+// A built-in in `edit` mode. Still there — seeing them is how you learn which
+// prompts are fixed — but recessed to the card's own colour, so it reads as
+// part of the background rather than as something waiting to be pressed.
+export const BTN_LOCKED =
+  'cursor-default touch-manipulation rounded-md border border-edge-soft bg-card px-2.5 py-1.5 ' +
+  'text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+
+// The second press of a two-press delete. Red is spent here and nowhere else,
+// so it only ever appears on the one control that destroys something.
+export const BTN_DANGER =
+  'cursor-pointer touch-manipulation rounded-md border border-danger bg-danger/15 px-2.5 py-1.5 ' +
+  'text-danger transition-colors hover:bg-danger/25 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60'
+
+// A line of explanation inside a card — quieter than its controls. No basis
+// here: flex-basis is the MAIN axis, so `basis-full` reads as full WIDTH in the
+// wrapping prompts row but as full HEIGHT inside a flex-col form. The row adds
+// it at the call site; the form must not.
+export const HINT = 'text-[11px] leading-snug text-muted'
+
 // A fieldset is a card, not a box: the raised background already separates it
 // from the panel, so an outline on top of that is a second edge doing the same
 // job. Only `edits` draws one, because there it carries meaning (the mood).
