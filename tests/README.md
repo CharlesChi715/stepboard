@@ -9,7 +9,7 @@ intercepted so nothing is ever typed into your CLI.
 | `harness.mjs` | shared setup: launch, PASS/FAIL log, summary, exit code |
 | `parity.mjs` | 47 checks — shortcuts, composer, constraints, history, prompts (making, editing, deleting) |
 | `regressions.mjs` | 5 checks — one per bug that actually bit |
-| `drag-select.mjs` | 5 checks — drag selects text even with mouse reporting on |
+| `drag-select.mjs` | 6 checks — drag selects text even with mouse reporting on |
 
 ```sh
 # once

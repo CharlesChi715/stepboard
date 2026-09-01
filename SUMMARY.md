@@ -63,7 +63,7 @@ stepboard/
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 43 headless checks pass (32 parity + 5
+- UI is React + Vite + Tailwind; 58 headless checks pass (47 parity + 5
   regression + 6 drag-select), run via `npm test`, non-zero exit on failure.
   They need a live stack on `SB_BASE` (default :8011) serving a built `ui/dist`.
 - Prompts come from `usePrompts`: `BUILTIN` ships in the file, yours are made
@@ -71,6 +71,22 @@ stepboard/
   the identity — App arms by label — so a duplicate is refused, not shadowed.
   The form carries `data-own-enter`: App's Enter-sends handler is a document
   CAPTURE listener, so only App can decline it.
+- Editing/deleting a prompt sits behind an `edit` mode button beside `+ new`,
+  not a ✎/× pair per chip: the panel is 15rem, so icons inside a chip would
+  shrink the arm target and put "delete" one slip from "arm". In the mode your
+  prompts are dashed-green targets (`BTN_TARGET`) and built-ins recede
+  (`BTN_LOCKED`) — `aria-disabled`, never `disabled`, because a real disabled
+  button eats the hover that shows a prompt's text. Pressing one reopens the
+  `+ new` form with save/cancel/delete; delete takes two presses (`sure?`,
+  `BTN_DANGER`) and needs no dialog since the form shows what you would lose.
+  Escape unwinds confirm → form → mode, which only works because closing the
+  form focuses its chip again. The mode is hidden when you own no prompts.
+- `usePrompts` is add/update/remove over one `commit`; update edits in place, so
+  fixing a typo never sends a prompt to the end of the row. App wraps
+  update/remove to carry a rename into `armed` and sweep a delete out of it.
+- `HINT` carries no `basis-full`: flex-basis is the MAIN axis, so it means full
+  width in the wrapping prompts row but full HEIGHT in the flex-col form. The
+  row adds it at the call site.
 - Drag in the terminal selects text even while Claude Code has mouse reporting
   on: mouse events are re-dispatched as alt-carrying clones (force selection).
   Never force shift too — that makes xterm extend a selection instead of
@@ -88,4 +104,4 @@ stepboard/
 
 - Charles: confirm drag-select + ⌘⇧L in Safari (only Chromium is covered).
 - Later: auto-reconnect when ttyd drops · error handling (dead tmux) ·
-  edit/delete a custom prompt (only creating one exists today).
+  reorder prompts (edit/delete now exist; order is still fixed).

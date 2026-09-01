@@ -261,3 +261,55 @@
 - 43/43 green (32 parity + 5 regressions + 6 drag-select) on a throwaway stack
   (ttyd 7691 / uvicorn 8011, `ui/dist` built first).
 - Branch: worktree-grab-clears-selection → merged to main.
+
+## 2026-09-01 — edit and delete a custom prompt
+- Closed the last open item under "Prompts": you could make one, never change
+  or remove one.
+- Interaction design, the part that took the thinking. The obvious move is a
+  ✎/× pair revealed on hover inside each chip. Rejected: the panel is 15rem, so
+  a chip is already a small target — icons inside one shrink the arm target AND
+  put an irreversible action one slip away from the thing you press constantly.
+  Right-click and long-press are undiscoverable. So: a mode.
+- `edit` sits beside `+ new` and toggles the row. Off, the row is byte-for-byte
+  what it always was — no new chrome for people who never edit a prompt. On,
+  your prompts become dashed-green targets (`BTN_TARGET`) and the built-ins
+  recede to the card's own colour (`BTN_LOCKED`). The mode pays for itself
+  twice: it is also the only place the panel has ever said which prompts are
+  fixed in the source and which are yours.
+- `aria-disabled`, not `disabled`, on the built-ins. A truly disabled button
+  swallows pointer events, and the hover snippet — the thing that shows what a
+  prompt actually appends — would stop working on exactly the prompts whose
+  text you cannot read anywhere else. Playwright refuses to click an
+  aria-disabled button, which is the correct semantic; the test forces it to
+  prove the press still opens nothing.
+- Pressing a target reopens the SAME form `+ new` uses, prefilled, with save /
+  cancel / delete. Delete is two presses (second reads `sure?`, `BTN_DANGER`)
+  and gets no dialog: the form already shows the full text you are about to
+  lose, which is the confirmation that matters.
+- Escape unwinds one layer per press — confirm → form → mode. The middle step
+  only works because closing the form focuses its chip again; without that the
+  form unmounts under the caret, focus falls to <body>, and Escape never
+  reaches the fieldset handler. A delete uses `reset()` instead of
+  `closeForm()`, since that chip is on its way out.
+- `usePrompts` is now add/update/remove over one `commit()` — one writer, so no
+  path can update the buttons and forget localStorage. `update` edits in place;
+  remove-then-append would send a prompt to the end of the row for a typo fix.
+  A shared `check()` gates add and update, with a `keep` label that is allowed
+  to collide with itself so "fix only the text" is not a duplicate.
+- App wraps update/remove because `armed` holds LABELS: a rename has to be
+  carried into it or an armed prompt silently stops being appended, and a
+  delete has to be swept out or re-making that label later comes back
+  pre-armed. Both forward the hook's rejection string untouched.
+- Bug caught by screenshotting the panel, not by a test: `HINT` had
+  `basis-full`. flex-basis is the MAIN axis — full width in the wrapping
+  prompts row, full HEIGHT in the flex-col form. It opened a ~100px hole
+  between "editing X" and the label field. Moved to the row's call site.
+- The mode is hidden when you own no prompts, so deleting your last one cannot
+  strand you in an empty edit mode.
+- 58/58 green (47 parity + 5 regressions + 6 drag-select) on a throwaway stack
+  (ttyd 7695 / uvicorn 8015, `ui/dist` built first). 15 of the parity checks
+  are new: prefill, rename, rename-collision refused, armed survives a rename,
+  reload, both delete presses, the Escape chain, and the mode retiring.
+- Note: the worktree branched from a stale origin/main and was rebased onto
+  local main before merging.
+- Branch: worktree-prompt-edit-delete → merged to main.
