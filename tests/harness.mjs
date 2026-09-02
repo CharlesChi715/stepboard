@@ -20,6 +20,19 @@ export async function suite(name, body) {
     const page = await browser.newPage({ viewport: { width: 1200, height: 700 } })
     page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
     page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
+
+    // Prompts live in a file on the server now, not in per-browser storage, so
+    // a fresh browser is no longer a fresh store: without this reset a suite
+    // would inherit whatever the last run left behind. Which also means the
+    // reset could destroy the real prompts.json — so refuse unless the stack
+    // was started with SB_PROMPTS pointing somewhere throwaway.
+    const cfg = await (await page.request.get(BASE + '/config')).json()
+    if (cfg.prompts_default) {
+      throw new Error(`refusing to run: the stack at ${BASE} is using your real prompts store ` +
+                      `(${cfg.prompts}). Start it with SB_PROMPTS=/tmp/sb-prompts-test.json`)
+    }
+    await page.request.delete(BASE + '/prompts')
+
     await page.goto(BASE + '/', { waitUntil: 'networkidle' })
     await page.waitForTimeout(1500)      // xterm needs a beat to connect and paint
     await body({ page, browser, ok })

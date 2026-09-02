@@ -4,13 +4,15 @@
 
 ```
 stepboard/
-├── serve.py            # FastAPI: GET /config (pairing), POST /send → tmux, serves ui/dist
+├── serve.py            # FastAPI: /config (pairing), POST /send → tmux,
+│                       #   GET/PUT/DELETE /prompts → prompts.json, serves ui/dist
 ├── ui/                 # React + Vite + Tailwind v4 (npm run dev :5173 · build → ui/dist)
 │   └── src/
 │       ├── App.jsx     # state, composer, global shortcuts
 │       ├── styles.css  # Tailwind import + @theme palette — no hand-written rules
 │       ├── components/ # MessageBar · Constraints · Prompts · History · Badge
-│       ├── hooks/      # useTtyd (xterm.js + ttyd protocol) · useHistory · usePrompts (localStorage)
+│       ├── hooks/      # useTtyd (xterm.js + ttyd protocol) · useHistory (localStorage)
+│       │               #   · usePrompts (server: /prompts)
 │       └── lib/        # compose.js — message + constraints → text · ui.js — class strings
 ├── bin/claude-s        # launcher — session N: ttyd :768N + uvicorn :800N + vite :5172+N
 ├── tests/              # headless checks: harness · parity · regressions · drag-select
@@ -63,20 +65,41 @@ stepboard/
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 71 headless checks pass (60 parity + 5
+- UI is React + Vite + Tailwind; 77 headless checks pass (66 parity + 5
   regression + 6 drag-select), run via `npm test`, non-zero exit on failure.
-  They need a live stack on `SB_BASE` (default :8011) serving a built `ui/dist`.
+  They need a live stack on `SB_BASE` (default :8011) serving a built `ui/dist`,
+  started with `SB_PROMPTS` pointing somewhere throwaway.
 - There is ONE kind of prompt. `BUILTIN` is a seed for a fresh browser, not a
   fixture: once seeded, a shipped prompt edits, renames and deletes like any
   you make. Labels are the identity — App arms by label — so a duplicate is
   refused, not shadowed. The form carries `data-own-enter`: App's Enter-sends
   handler is a document CAPTURE listener, so only App can decline it.
-- Store is `sb-prompts` = `{ list, seeded }`. `list` is every prompt in row
-  order (nothing is prepended at render time, or a seed could never be moved or
-  removed). `seeded` is the seed labels this browser has been handed — without
-  it `list` alone cannot tell "I deleted `pro`" from "`pro` was added to the
-  source later", so a new seed could never arrive or a deleted one would come
-  back every load. A bare array is the v1 store and migrates on read.
+- Prompts live in `prompts.json` next to serve.py — ONE store for every session
+  and every port. localStorage was per-origin, so :5173, :5174 and :8001 each
+  had a private copy. `SB_PROMPTS` overrides the path.
+  `GET /prompts` → `{rev, doc}` (`doc: null` = no file yet, which the panel
+  answers by seeding — an empty `list` is a real state and must not collapse to
+  null). `PUT` carries the rev it read and is refused with 409 + the current doc
+  if stale, because two sessions sharing one file makes a lost write the norm,
+  not an edge case. `DELETE` resets. Writes are tmp + `os.replace`, so a crash
+  cannot truncate the file. The panel writes optimistically and rolls back, or
+  adopts the server's doc on a 409, reporting either on the badge.
+- The doc is `{ list, seeded }`. `list` is every prompt in row order (nothing is
+  prepended at render time, or a seed could never be moved or removed).
+  `seeded` is the seed labels this install has been handed — without it `list`
+  alone cannot tell "I deleted `pro`" from "`pro` was added to the source
+  later", so a new seed could never arrive or a deleted one would come back
+  every load.
+- A plain page load must NEVER write. The seed-merge returns null when nothing
+  changed, and that is load-bearing: it once returned a freshly built object, an
+  identity check read "changed" every load, and two open sessions bumped rev
+  past each other until the next real edit died on a 409. Parity guards it.
+- Old per-browser stores (`sb-prompts`, either shape) are adopted ONCE when the
+  server has no file, then the key is renamed `sb-prompts-migrated` — otherwise
+  deleting prompts.json to reset would quietly resurrect them.
+- `/config` reports `prompts` + `prompts_default`. The test harness wipes the
+  store before every suite, so it refuses to run unless `SB_PROMPTS` was set —
+  without that interlock `npm test` would eat your real prompts.
 - The PROMPTS card is two levels: an actions row (`+ new` · `edit` · `restore`,
   `BTN_ACTION`, small and muted) ABOVE the chips row (`CHIP_ROW`). They used to
   share one wrap row and one style, which made a control read as a prompt.
