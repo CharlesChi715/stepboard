@@ -85,8 +85,37 @@ The original vanilla-JS page this replaced lives in git history:
 ## Customize
 
 Every prompt is the same kind of thing — the ones that ship are seeds, not
-fixtures, so they edit and delete exactly like the ones you make. The whole
-list lives in `localStorage` (`sb-prompts`); no rebuild, no file to edit.
+fixtures, so they edit and delete exactly like the ones you make. No rebuild.
+
+They are stored in **`prompts.json`**, next to `serve.py`:
+
+```
+prompts.json          one file, shared by EVERY session and port
+  ├── rev             bumped per write; a stale PUT is refused, not applied
+  └── doc
+      ├── list        every prompt, in row order
+      └── seeded      which seed labels this install has been handed
+```
+
+That file is the answer to "where do my prompts actually go". It is plain JSON,
+safe to read, edit or back up by hand — the panel picks up changes on reload.
+`SB_PROMPTS=/some/other.json` moves it. It is gitignored, so it never lands in
+a commit.
+
+```sh
+curl localhost:8001/prompts             # read the store
+curl -X DELETE localhost:8001/prompts   # reset to the BUILTIN seed
+```
+
+It used to live in browser `localStorage`, which is scoped per ORIGIN — so
+`localhost:5173`, `localhost:5174` and `localhost:8001` each kept a private,
+invisible copy, and clearing site data lost the lot. One file fixes all three.
+Two panels open at once is now the normal case, so a write carries the revision
+it read: if the other session got there first the panel says so and reloads
+rather than silently overwriting. Reloading the other tab is how it catches up —
+there is no live push.
+
+Your input **history** is still per-browser localStorage. It is scratch.
 
 The PROMPTS card is two levels. The controls sit in their own row above the
 chips, quieter and smaller, so a control is never mistaken for a prompt:
@@ -120,9 +149,9 @@ export const BUILTIN = [
 ]
 ```
 
-Adding one here still reaches a browser that has already been seeded: the store
-remembers which seed labels it has been handed, so a genuinely new one arrives
-once, while one you deleted stays deleted. Rebuild with `npm run build`.
+Adding one here still reaches an install that has already been seeded: the
+store remembers which seed labels it has been handed, so a genuinely new one
+arrives once, while one you deleted stays deleted. Rebuild with `npm run build`.
 
 Click a button to *arm* it (turns blue); armed texts ride along with the next
 send.

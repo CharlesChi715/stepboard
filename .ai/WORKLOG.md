@@ -359,3 +359,54 @@
 - Note: the worktree branched from a stale origin/main again and was rebased
   onto local main before merging. Worth watching if it keeps happening.
 - Branch: worktree-prompts-all-editable → merged to main.
+
+## 2026-09-02 — prompts move to prompts.json on the server
+- Charles asked where an edited/added prompt actually gets written. Answer at
+  the time: browser localStorage, nowhere else. He picked the server store.
+- The real motivation is not durability, it is ORIGIN. localStorage is scoped
+  to scheme+host+port, and claude-s hands every session its own vite port —
+  so :5173, :5174 and :8001 each kept a private, invisible set of prompts.
+- serve.py grows GET/PUT/DELETE /prompts over one JSON file, default
+  `prompts.json` beside it, `SB_PROMPTS` to override. The file is gitignored.
+- The server does NOT know the shape of a prompts doc — `doc: Any`. The seed
+  list stays in usePrompts.js, so adding a prompt to the app is still a
+  one-file change, and the store stays a dumb blob.
+- `doc: null` means "no file yet" and is distinct from an empty `list`, which
+  is a real state (you deleted every prompt). Collapsing them would have made
+  "delete everything" un-persistable.
+- PUT carries the rev it read; a stale one gets 409 + the current doc instead of
+  clobbering. Last-write-wins would be fine for one client, but the whole point
+  of this change is that several sessions share the file — so a lost prompt goes
+  from exotic to routine. Writes are tmp + os.replace so a crash cannot leave a
+  half-written file.
+- Client writes optimistically (localhost round-trip per edit would be worse
+  than a rare rollback) and reports failures through App's existing badge, which
+  is why `flash` had to move above usePrompts in App.
+- `commit(next, rollback)` takes the rollback explicitly: the first write comes
+  from inside the load effect where the captured doc is still null, and rolling
+  back to that would strand the panel on "loading" for ever.
+- `ready` gates the actions row. Before the fetch lands the list is empty, which
+  without the gate reads as "everything is deleted" and flashes `restore 3`.
+- BUG, caught by an end-to-end two-port check rather than by any unit-ish test:
+  withNewSeeds returned the doc "unchanged" when nothing grew, but the caller
+  builds a fresh object to pass in, so `grown !== got.doc` was ALWAYS true. Every
+  page load wrote. With two sessions open they bumped rev past each other and the
+  next real edit died on a 409 — which is exactly what the cross-port script hit.
+  Now it returns null when nothing changed, and a parity check pins "a plain load
+  does not write to the store".
+- Old localStorage stores (both shapes) are adopted ONCE when the server has no
+  file, then the key is renamed sb-prompts-migrated — otherwise deleting
+  prompts.json to reset would quietly resurrect them.
+- Safety interlock: /config reports `prompts` + `prompts_default`, and the
+  harness wipes the store before every suite, so it REFUSES to run unless
+  SB_PROMPTS was set. Verified by pointing a suite at a default-path server:
+  it failed with the path named and created no file. Without this, `npm test`
+  would have eaten Charles's real prompts.
+- useHistory stays on localStorage. It is scratch, and per-browser is right.
+- 77/77 green (66 parity + 5 regressions + 6 drag-select) on a throwaway stack
+  (ttyd 7697 / uvicorn 8019, SB_PROMPTS in the job tmp). 9 new parity checks:
+  cross-session visibility, no-write-on-load, the 409 pair, the seeded pair, and
+  the three adoption checks.
+- Cross-port sharing proved by hand too: prompt made through the UI on :8019,
+  present on :8021 after reload.
+- Branch: worktree-prompts-server-store → merged to main.

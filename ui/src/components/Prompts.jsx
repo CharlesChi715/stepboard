@@ -12,7 +12,7 @@ import { BTN, BTN_ACTION, BTN_ACTION_ON, BTN_DANGER, BTN_ON, BTN_TARGET, CHIP_RO
 // destructive icon inside one would both shrink the arm target and make
 // "delete" a mis-click away from "arm".
 export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onDelete,
-                                  onRestore, missing }) {
+                                  onRestore, missing, ready }) {
   const [manage, setManage] = useState(false)
   const [form, setForm] = useState(null)    // null · { editing: null } new · { editing: label }
   const [label, setLabel] = useState('')
@@ -27,7 +27,10 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
   // `|| missing` is the escape hatch, not a detail: delete every prompt and a
   // `prompts.length > 0` guard would hide the edit button, and `restore` lives
   // inside the mode — so the one control that undoes it would be unreachable.
-  const canManage = prompts.length > 0 || missing > 0
+  // `ready` gates the lot: the store is a fetch away now, and before it lands
+  // an empty list would briefly read as "everything is deleted" and flash
+  // `restore 3` at you.
+  const canManage = ready && (prompts.length > 0 || missing > 0)
   const managing = manage && canManage
 
   const reset = () => { setForm(null); setLabel(''); setText(''); setErr(null); setArmDel(false) }
@@ -73,9 +76,10 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
           their own quieter style. Sharing the chips' row and chrome made a
           control read as just another prompt. */}
       <div className="actions flex flex-wrap items-center gap-1">
-        <button className={`new-prompt ${form && !form.editing ? BTN_ACTION_ON : BTN_ACTION}`}
+        {!ready && <span className={`loading ${HINT}`}>loading…</span>}
+        {ready && <button className={`new-prompt ${form && !form.editing ? BTN_ACTION_ON : BTN_ACTION}`}
                 aria-expanded={!!form && !form.editing}
-                onClick={() => (form && !form.editing ? closeForm() : startNew())}>+ new</button>
+                onClick={() => (form && !form.editing ? closeForm() : startNew())}>+ new</button>}
         {canManage && (
           <button className={`edit-prompts ${managing ? BTN_ACTION_ON : BTN_ACTION}`}
                   aria-pressed={managing}

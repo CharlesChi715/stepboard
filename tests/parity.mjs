@@ -1,4 +1,4 @@
-import { suite, captureSends } from './harness.mjs'
+import { suite, captureSends, BASE } from './harness.mjs'
 
 // The broad sweep: every behaviour the vanilla page had, the React panel must keep.
 await suite('parity', async ({ page, ok }) => {
@@ -261,25 +261,60 @@ await suite('parity', async ({ page, ok }) => {
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
   ok('delete survives reload', await page.locator('.prompts .chips button', { hasText: /^tdd2$/ }).count() === 0)
 
-  // 15 — a browser still holding the v1 store (a bare array of only YOUR
-  // prompts, with the shipped ones implicit in front) reads as one flat list.
-  await page.evaluate(() => localStorage.setItem('sb-prompts',
-    JSON.stringify([{ label: 'legacy', text: 'from the old shape' }])))
-  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
-  ok('v1 store migrates to one flat list', await page.locator('.prompts .group').count() === 4
-     && await page.locator('.prompts .chips button', { hasText: /^legacy$/ }).count() === 1)
-  await page.click('.edit-prompts'); await page.waitForTimeout(150)
-  await page.locator('.prompts .chips button', { hasText: /^pro$/ }).click(); await page.waitForTimeout(150)
-  ok('a migrated shipped prompt is editable',
-     await page.locator('.prompts form input[type=text]').inputValue() === 'pro')
+  // 15 — the store is a file on the server, not this browser. A write made
+  // outside this tab (which is what a second session IS) shows up on reload,
+  // and nothing of consequence is left in localStorage.
+  const doc = async () => (await (await page.request.get(BASE + '/prompts')).json())
+  const put = async (list, seeded, rev) => (await page.request.put(BASE + '/prompts',
+    { data: { rev: rev ?? (await doc()).rev, doc: { list, seeded } } }))
 
-  // 16 — the two halves of why `seeded` is stored. A BUILTIN label absent from
-  // it is new and must arrive; one present in it was retired and must not.
-  await page.evaluate(() => localStorage.setItem('sb-prompts', JSON.stringify({
-    list: [{ label: 'mine', text: 'only mine' }], seeded: ['pro', 'socratic'] })))
+  // Merely opening the panel must not write. It used to: the seed-merge handed
+  // back a freshly built object, so an identity check read "changed" on every
+  // load — two open sessions bumped rev past each other and the next real edit
+  // died on a 409.
+  const revBefore = (await doc()).rev
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
-  ok('a newly shipped prompt reaches an existing browser',
+  ok('a plain load does not write to the store', (await doc()).rev === revBefore)
+
+  await put([{ label: 'elsewhere', text: 'written by another session' }],
+            ['pro', 'socratic', 'first principles'])
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('a write from another session shows up here',
+     await page.locator('.prompts .chips button', { hasText: /^elsewhere$/ }).count() === 1)
+  ok('nothing is left in per-browser storage',
+     await page.evaluate(() => localStorage.getItem('sb-prompts')) === null)
+
+  // 16 — a stale write is refused rather than silently clobbering. Two sessions
+  // sharing one file makes this the expected case, not an exotic one.
+  const before = await doc()
+  await put([{ label: 'first', text: 'a' }], before.doc.seeded, before.rev)
+  const stale = await put([{ label: 'second', text: 'b' }], before.doc.seeded, before.rev)
+  ok('a stale write is refused, not applied', stale.status() === 409)
+  ok('the refusal hands back the current doc',
+     (await stale.json()).doc.list[0].label === 'first')
+
+  // 17 — the two halves of why `seeded` is stored. A BUILTIN label absent from
+  // it is new and must arrive; one present in it was retired and must not.
+  await put([{ label: 'mine', text: 'only mine' }], ['pro', 'socratic'])
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('a newly shipped prompt reaches an existing store',
      await page.locator('.prompts .chips button', { hasText: /^first principles$/ }).count() === 1)
   ok('a retired shipped prompt is not resurrected',
      await page.locator('.prompts .chips button', { hasText: /^pro$/ }).count() === 0)
+
+  // 18 — the one-time adoption: a browser still holding the old per-browser
+  // store, against a server that has none, keeps its prompts instead of
+  // silently reverting to the seed. v1 was a bare array of only YOUR prompts.
+  await page.request.delete(BASE + '/prompts')
+  await page.evaluate(() => localStorage.setItem('sb-prompts',
+    JSON.stringify([{ label: 'legacy', text: 'from the old shape' }])))
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('an old per-browser store is adopted, not lost',
+     await page.locator('.prompts .chips button', { hasText: /^legacy$/ }).count() === 1
+     && await page.locator('.prompts .group').count() === 4)
+  ok('the adopted prompts are now on the server',
+     (await doc()).doc.list.some(p => p.label === 'legacy'))
+  ok('the old key is retired so a reset cannot resurrect it',
+     await page.evaluate(() => localStorage.getItem('sb-prompts')) === null
+     && await page.evaluate(() => localStorage.getItem('sb-prompts-migrated')) !== null)
 })

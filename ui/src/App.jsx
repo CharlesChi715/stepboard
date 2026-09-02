@@ -22,7 +22,17 @@ export default function App() {
   const inputRef = useRef(null)
   const noteTimer = useRef(0)
   const { hist, save } = useHistory()
-  const { prompts, add: addPrompt, update, remove, restore, missing } = usePrompts()
+
+  // Defined before usePrompts on purpose: prompts now live in a file on the
+  // server, so a save can actually fail, and the badge is how the panel admits
+  // it instead of showing a prompt that was never written.
+  const flash = useCallback((text, bad) => {
+    setNote({ text, bad })
+    clearTimeout(noteTimer.current)
+    noteTimer.current = setTimeout(() => setNote(null), 3000)
+  }, [])
+
+  const { prompts, ready, add: addPrompt, update, remove, restore, missing } = usePrompts(flash)
 
   // `armed` holds labels, so a rename has to be carried over to it or an armed
   // prompt would silently stop being appended; a delete has to be swept out of
@@ -39,12 +49,6 @@ export default function App() {
     if (!why) setArmed(a => a.filter(x => x !== label))
     return why
   }, [remove])
-
-  const flash = useCallback((text, bad) => {
-    setNote({ text, bad })
-    clearTimeout(noteTimer.current)
-    noteTimer.current = setTimeout(() => setNote(null), 3000)
-  }, [])
 
   const onSelection = useCallback(s => flash(`selected: ${s.length} chars`), [flash])
   const onKeyReport = useCallback(e => flash(
@@ -120,7 +124,7 @@ export default function App() {
         <Edits lines={lines} onLines={setLines} />
         <Prompts prompts={prompts} armed={armed} onAdd={addPrompt}
                  onUpdate={editPrompt} onDelete={deletePrompt}
-                 onRestore={restore} missing={missing}
+                 onRestore={restore} missing={missing} ready={ready}
                  onToggle={label => setArmed(a =>
                    a.includes(label) ? a.filter(x => x !== label) : [...a, label])} />
 

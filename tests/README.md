@@ -7,7 +7,7 @@ intercepted so nothing is ever typed into your CLI.
 | file | what it covers |
 | --- | --- |
 | `harness.mjs` | shared setup: launch, PASS/FAIL log, summary, exit code |
-| `parity.mjs` | 60 checks — shortcuts, composer, constraints, history, prompts (make · edit · delete · restore · store migration) |
+| `parity.mjs` | 66 checks — shortcuts, composer, constraints, history, prompts (make · edit · delete · restore · the server store) |
 | `regressions.mjs` | 5 checks — one per bug that actually bit |
 | `drag-select.mjs` | 6 checks — drag selects text even with mouse reporting on |
 
@@ -15,9 +15,12 @@ intercepted so nothing is ever typed into your CLI.
 # once
 npm install && npx playwright install chromium
 
-# 1. a throwaway terminal + panel, so your live claude session is untouched
+# 1. a throwaway terminal + panel, so your live claude session is untouched.
+# SB_PROMPTS is NOT optional: the harness wipes the prompts store before every
+# suite, and refuses to start if the stack is pointed at your real prompts.json.
 ttyd -W -i lo0 -p 7691 tmux new -A -s sbtest bash &
-SB_TTYD_PORT=7691 SB_SESSION=sbtest uv run uvicorn serve:app --port 8011 &
+SB_TTYD_PORT=7691 SB_SESSION=sbtest SB_PROMPTS=/tmp/sb-prompts-test.json \
+  uv run uvicorn serve:app --port 8011 &
 
 # 2. all three suites (stops at the first failing suite)
 npm test
