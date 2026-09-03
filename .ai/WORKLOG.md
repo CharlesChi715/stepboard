@@ -410,3 +410,35 @@
 - Cross-port sharing proved by hand too: prompt made through the UI on :8019,
   present on :8021 after reload.
 - Branch: worktree-prompts-server-store → merged to main.
+
+## 2026-09-03 — /prompts was never proxied in dev, so the panel looked empty
+- Charles: "So why disappeared?" His prompts had not disappeared. The panel he
+  browses is Vite (:5173), and ui/vite.config.js proxied only /config and /send.
+  A route that is NOT proxied does not 404 — Vite falls through to index.html
+  and answers 200 text/html, so `res.json()` threw, the load failed, and the
+  panel rendered an empty list.
+- Nothing was lost: the failed load never wrote, so GET /prompts still reported
+  `doc: null` and the localStorage adopt path had never run.
+- Why every test missed it: the browser suites drive the BUILT panel served by
+  serve.py, where the API and the page share one origin and no proxy exists.
+  Nothing in the suite ever crossed Vite. Testing through the artifact you do
+  not actually use is a hole, not a coincidence.
+- Fix 1: `API_ROUTES` in vite.config.js is now the single list, and the proxy is
+  built from it. Fix 2: tests/proxy.mjs greps ui/src for fetch('/...') paths and
+  fails if one is not in that list. No browser, no stack, runs first in
+  `npm test`. Negative control: removing /prompts from the list makes it FAIL,
+  so the check has teeth.
+- Fix 3, the one that made this look like data loss: a failed LOAD used to fall
+  back to `{list: [], seeded: []}`, i.e. a normal, editable, empty row. That
+  reads as "everything was deleted" — and worse, adding a prompt from that
+  state would have PUT a store with the real prompts missing. Now `doc` stays
+  null, the card says "prompts: could not load", and no control that writes is
+  rendered at all.
+- Three parity checks pin it, and they fulfil the request with 200 text/html —
+  the exact shape of the bug — rather than aborting, which also keeps the
+  console-error list clean for real errors.
+- Verified the real path, not just the tests: a Vite dev server (:5199) against
+  a throwaway FastAPI (:8023); /prompts through Vite returns JSON; a prompt
+  typed into the dev panel landed in prompts.json on disk.
+- 85/85 green (5 proxy + 69 parity + 5 regressions + 6 drag-select).
+- Branch: worktree-fix-vite-prompts-proxy → merged to main.

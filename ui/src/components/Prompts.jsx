@@ -12,7 +12,7 @@ import { BTN, BTN_ACTION, BTN_ACTION_ON, BTN_DANGER, BTN_ON, BTN_TARGET, CHIP_RO
 // destructive icon inside one would both shrink the arm target and make
 // "delete" a mis-click away from "arm".
 export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onDelete,
-                                  onRestore, missing, ready }) {
+                                  onRestore, missing, ready, error }) {
   const [manage, setManage] = useState(false)
   const [form, setForm] = useState(null)    // null · { editing: null } new · { editing: label }
   const [label, setLabel] = useState('')
@@ -76,7 +76,8 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
           their own quieter style. Sharing the chips' row and chrome made a
           control read as just another prompt. */}
       <div className="actions flex flex-wrap items-center gap-1">
-        {!ready && <span className={`loading ${HINT}`}>loading…</span>}
+        {!ready && <span className={error ? 'loading text-[11px] leading-snug text-danger'
+                                            : `loading ${HINT}`}>{error || 'loading…'}</span>}
         {ready && <button className={`new-prompt ${form && !form.editing ? BTN_ACTION_ON : BTN_ACTION}`}
                 aria-expanded={!!form && !form.editing}
                 onClick={() => (form && !form.editing ? closeForm() : startNew())}>+ new</button>}

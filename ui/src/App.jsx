@@ -32,7 +32,8 @@ export default function App() {
     noteTimer.current = setTimeout(() => setNote(null), 3000)
   }, [])
 
-  const { prompts, ready, add: addPrompt, update, remove, restore, missing } = usePrompts(flash)
+  const { prompts, ready, error: promptsError, add: addPrompt,
+          update, remove, restore, missing } = usePrompts(flash)
 
   // `armed` holds labels, so a rename has to be carried over to it or an armed
   // prompt would silently stop being appended; a delete has to be swept out of
@@ -124,7 +125,7 @@ export default function App() {
         <Edits lines={lines} onLines={setLines} />
         <Prompts prompts={prompts} armed={armed} onAdd={addPrompt}
                  onUpdate={editPrompt} onDelete={deletePrompt}
-                 onRestore={restore} missing={missing} ready={ready}
+                 onRestore={restore} missing={missing} ready={ready} error={promptsError}
                  onToggle={label => setArmed(a =>
                    a.includes(label) ? a.filter(x => x !== label) : [...a, label])} />
 
