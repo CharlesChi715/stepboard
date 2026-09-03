@@ -66,6 +66,7 @@ function withNewSeeds({ list, seeded }) {
 // otherwise show a prompt that is not actually saved anywhere.
 export function usePrompts(onError) {
   const [doc, setDoc] = useState(null)      // null until the first GET lands
+  const [failed, setFailed] = useState(null)
   const revRef = useRef(0)
   const say = useRef(onError)
   say.current = onError                     // no re-subscribing just because App re-rendered
@@ -109,7 +110,11 @@ export function usePrompts(onError) {
       let got = null
       try { got = await (await fetch('/prompts')).json() } catch { /* handled below */ }
       if (!alive) return
-      if (!got) { say.current?.('prompts: could not load', true); setDoc({ list: [], seeded: [] }); return }
+      // Leave `doc` null on a failed load, so the panel stays "not ready" and
+      // shows why. Falling back to an empty list would read as "every prompt
+      // was deleted", and worse: adding one from that state would write a store
+      // with your real prompts missing from it.
+      if (!got) { setFailed('prompts: could not load'); say.current?.('prompts: could not load', true); return }
       revRef.current = got.rev || 0
 
       if (got.doc) {
@@ -194,5 +199,6 @@ export function usePrompts(onError) {
     return null
   }, [commit, list, missing, seeded])
 
-  return { prompts: list, ready: doc !== null, add, update, remove, restore, missing: missing.length }
+  return { prompts: list, ready: doc !== null, error: failed,
+           add, update, remove, restore, missing: missing.length }
 }

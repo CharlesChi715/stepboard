@@ -317,4 +317,24 @@ await suite('parity', async ({ page, ok }) => {
   ok('the old key is retired so a reset cannot resurrect it',
      await page.evaluate(() => localStorage.getItem('sb-prompts')) === null
      && await page.evaluate(() => localStorage.getItem('sb-prompts-migrated')) !== null)
+
+  // 19 — a store that cannot be read must SAY so, never render as an empty row.
+  // An empty row reads as "every prompt was deleted", and adding one from that
+  // state would write a store with the real prompts missing from it. This is
+  // the shape of the /prompts-not-proxied bug, where Vite answered the fetch
+  // with index.html and the panel quietly showed nothing.
+  // Answer exactly the way an un-proxied route does in dev: 200, text/html,
+  // the index page. That is the real failure, and unlike an aborted request it
+  // leaves no console error to drown out a genuine one.
+  await page.route('**/prompts', r =>
+    r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>panel</title>' }))
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200)
+  ok('an unreadable store says so', /could not load/.test(
+       await page.locator('.prompts .loading').textContent().catch(() => '')))
+  ok('an unreadable store shows no prompts to edit',
+     await page.locator('.prompts .chips button').count() === 0)
+  ok('an unreadable store offers no way to write over it',
+     await page.locator('.new-prompt').count() === 0
+     && await page.locator('.edit-prompts').count() === 0)
+  await page.unroute('**/prompts')
 })

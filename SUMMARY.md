@@ -65,10 +65,10 @@ stepboard/
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 77 headless checks pass (66 parity + 5
-  regression + 6 drag-select), run via `npm test`, non-zero exit on failure.
-  They need a live stack on `SB_BASE` (default :8011) serving a built `ui/dist`,
-  started with `SB_PROMPTS` pointing somewhere throwaway.
+- UI is React + Vite + Tailwind; 85 headless checks pass (5 proxy + 69 parity +
+  5 regression + 6 drag-select), run via `npm test`, non-zero exit on failure.
+  All but `proxy.mjs` need a live stack on `SB_BASE` (default :8011) serving a
+  built `ui/dist`, started with `SB_PROMPTS` pointing somewhere throwaway.
 - There is ONE kind of prompt. `BUILTIN` is a seed for a fresh browser, not a
   fixture: once seeded, a shipped prompt edits, renames and deletes like any
   you make. Labels are the identity — App arms by label — so a duplicate is
@@ -97,6 +97,17 @@ stepboard/
 - Old per-browser stores (`sb-prompts`, either shape) are adopted ONCE when the
   server has no file, then the key is renamed `sb-prompts-migrated` — otherwise
   deleting prompts.json to reset would quietly resurrect them.
+- Vite's dev proxy must list EVERY route the panel fetches (`API_ROUTES` in
+  ui/vite.config.js). A missing one does not 404 — Vite serves index.html with
+  status 200, `res.json()` throws, and the feature silently reads as empty.
+  That is how /prompts shipped dead: the built panel (one origin, no proxy) and
+  every browser test were fine, because none of them crossed Vite. `proxy.mjs`
+  greps ui/src for fetch() paths and fails if one is unlisted — no browser
+  needed, so it runs first.
+- A store that cannot be READ leaves `doc` null and says so in the card. It must
+  never fall back to an empty list: that reads as "all your prompts were
+  deleted", and adding one from there would write a store with the real ones
+  missing.
 - `/config` reports `prompts` + `prompts_default`. The test harness wipes the
   store before every suite, so it refuses to run unless `SB_PROMPTS` was set —
   without that interlock `npm test` would eat your real prompts.

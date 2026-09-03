@@ -7,7 +7,8 @@ intercepted so nothing is ever typed into your CLI.
 | file | what it covers |
 | --- | --- |
 | `harness.mjs` | shared setup: launch, PASS/FAIL log, summary, exit code |
-| `parity.mjs` | 66 checks — shortcuts, composer, constraints, history, prompts (make · edit · delete · restore · the server store) |
+| `proxy.mjs` | 5 checks — every route the panel fetches is proxied in dev. No browser, no stack |
+| `parity.mjs` | 69 checks — shortcuts, composer, constraints, history, prompts (make · edit · delete · restore · the server store · an unreadable store) |
 | `regressions.mjs` | 5 checks — one per bug that actually bit |
 | `drag-select.mjs` | 6 checks — drag selects text even with mouse reporting on |
 

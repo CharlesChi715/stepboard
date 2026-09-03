@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Headless browser checks for the panel. The app itself lives in ui/.",
   "scripts": {
-    "test": "node tests/parity.mjs && node tests/regressions.mjs && node tests/drag-select.mjs"
+    "test": "node tests/proxy.mjs && node tests/parity.mjs && node tests/regressions.mjs && node tests/drag-select.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1"
