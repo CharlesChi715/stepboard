@@ -452,3 +452,6 @@
   (cat -v): only the two product URLs carry `\033[1;4;92m`.
 - ~/Documents/bin/claude-s is a symlink into the repo, so one edit covers both.
 - Branch: worktree-claude-s-highlight-url.
+- Charles: "not highlighted enough" — bold+underline was too quiet. Now a solid
+  block (`\033[1;30;102m`, padded), plus a standalone blank-framed `▶ OPEN
+  http://localhost:517N` line printed after the 1s settle, right before `open`.
