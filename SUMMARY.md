@@ -56,6 +56,9 @@ stepboard/
 - claude-s tags each child's output with a colored `label │` prefix (ttyd/api/
   vite), strips timestamp+N:/INFO: noise, keeps W:/E:, prints a ports banner.
   Vite's stream is visible (was >/dev/null); ⌘⇧L leaves the caret on a fresh line.
+- The product URL (`http://localhost:517N`) is the one thing to spot in that
+  scroll, so it is bold+underlined bright green (`$URL`) in the banner AND in
+  vite's `Local:` line; uvicorn's :800N URL stays plain — it is not the page.
 - The panel draws the terminal itself with xterm.js (no iframe), so the terminal
   selection is readable — that is what ⌘⇧L needs.
 - Selection → input is keyboard-only: the "take terminal selection" button is

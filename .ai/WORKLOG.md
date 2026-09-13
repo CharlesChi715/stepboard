@@ -442,3 +442,13 @@
   typed into the dev panel landed in prompts.json on disk.
 - 85/85 green (5 proxy + 69 parity + 5 regressions + 6 drag-select).
 - Branch: worktree-fix-vite-prompts-proxy → merged to main.
+
+## 2026-09-13 — claude-s highlights the product URL
+- bin/claude-s: `URL`/`RESET` escape vars; the banner's `http://localhost:517N`
+  is bold+underlined bright green instead of the dim gray of the rest of the
+  line, and tag() wraps the same URL in vite's `Local:` line (awk match/substr).
+  The api stream's uvicorn :800N URL is deliberately left plain.
+- Verified by rendering the banner + tag() against sample vite/api/ttyd lines
+  (cat -v): only the two product URLs carry `\033[1;4;92m`.
+- ~/Documents/bin/claude-s is a symlink into the repo, so one edit covers both.
+- Branch: worktree-claude-s-highlight-url.

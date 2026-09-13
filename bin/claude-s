@@ -26,15 +26,22 @@ VITE_PORT=$((5172+N))                # session 1 → 5173, session 2 → 5174, .
 # a pipe anyway (not a TTY), so the label carries the color instead. Per-stream
 # sub() drops boilerplate the label already conveys — ttyd's [timestamp] and
 # its N: notice marker, uvicorn's INFO: — while W:/E:/WARNING:/ERROR: stay.
+# The product URL — the one tab to open — is the only thing worth spotting in
+# the scroll, so it is bold + underlined bright green (URL) wherever it shows:
+# in the banner and in vite's own `Local: http://…` line. api's uvicorn URL is
+# NOT highlighted: it is not the page you open.
+URL=$'\033[1;4;92m'; RESET=$'\033[0m'
 tag() {  # tag <label> <ansi-color-code>
-  awk -v l="$1" -v c="$2" '{
+  awk -v l="$1" -v c="$2" -v u="$URL" -v r="$RESET" '{
     if (l == "ttyd") { sub(/^\[[0-9\/: ]+\] /, ""); sub(/^N: /, "") }
     if (l == "api")  sub(/^INFO: */, "")
+    if (l == "vite" && match($0, /http:\/\/localhost:[0-9]+\/?/))
+      $0 = substr($0, 1, RSTART-1) u substr($0, RSTART, RLENGTH) r substr($0, RSTART+RLENGTH)
     printf "\033[1;%sm%4s │\033[0m %s\n", c, l, $0; fflush()
   }'
 }
 
-print -P "%F{8}── stepboard $N ── term :$TTYD_PORT · api :$WEB_PORT · ui http://localhost:$VITE_PORT ──%f"
+print -P "%F{8}── stepboard $N ── term :$TTYD_PORT · api :$WEB_PORT · ui ${URL}http://localhost:$VITE_PORT${RESET}%F{8} ──%f"
 
 ttyd -W -i lo0 -p $TTYD_PORT tmux new -A -s $SESSION claude 2>&1 | tag ttyd 36 &
 # PYTHONUNBUFFERED: print() into a pipe block-buffers, which would hold back
