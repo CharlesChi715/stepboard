@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { BTN, BTN_ACTION, BTN_ACTION_ON, BTN_DANGER, BTN_ON, BTN_TARGET, CHIP_ROW, FIELDSET,
          HINT, LEGEND, TEXT_IN } from '../lib/ui.js'
 
@@ -8,10 +8,10 @@ import { BTN, BTN_ACTION, BTN_ACTION_ON, BTN_DANGER, BTN_ON, BTN_TARGET, CHIP_RO
 // exactly like the ones you make.
 //
 // Editing lives behind an `edit` mode rather than a ✎/× pair on every chip.
-// The panel is 15rem wide, so a chip is a small target already — putting a
+// The panel is at least 15rem wide, so a chip is a small target already — putting a
 // destructive icon inside one would both shrink the arm target and make
 // "delete" a mis-click away from "arm".
-export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onDelete,
+export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onDelete, onMove,
                                   onRestore, missing, ready, error }) {
   const [manage, setManage] = useState(false)
   const [form, setForm] = useState(null)    // null · { editing: null } new · { editing: label }
@@ -19,9 +19,9 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
   const [text, setText] = useState('')
   const [err, setErr] = useState(null)
   const [armDel, setArmDel] = useState(false)   // delete is two presses, never one
-  // Where focus goes when the form closes. Without this the form unmounts under
-  // the caret, focus falls to <body>, and Escape stops reaching this fieldset —
-  // so the second Escape could never leave edit mode.
+  // Where focus goes when the form closes, so the chip you opened is where you
+  // are again. Escape itself is heard at the document: Safari never focuses a
+  // clicked button, so a handler on the form would miss it.
   const chips = useRef(new Map())
 
   // `|| missing` is the escape hatch, not a detail: delete every prompt and a
@@ -62,14 +62,25 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
 
   const escape = () => (armDel ? setArmDel(false) : closeForm())
 
+  const onEscape = useEffectEvent(e => {
+    if (e.key !== 'Escape' || e.target.closest?.('.term, dialog')) return
+    if (form) escape()
+    else if (managing) setManage(false)
+  })
+  useEffect(() => {
+    if (!form && !managing) return
+    const h = e => onEscape(e)
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [form, managing])
+
   return (
     // `relative` here, and NOT on the chip wrapper below, is deliberate: it makes
     // the fieldset the popup's containing block, so the popup spans this card's
     // width instead of hanging off a button and getting clipped by the panel's
     // overflow-y-auto (which makes overflow-x non-visible too). It also means the
     // chips row must stay unpositioned.
-    <fieldset className={`prompts ${FIELDSET} relative`}
-              onKeyDown={e => { if (e.key === 'Escape' && managing && !form) setManage(false) }}>
+    <fieldset className={`prompts ${FIELDSET} relative`}>
       <legend className={LEGEND}>prompts</legend>
 
       {/* Controls live one level up from the prompts, in their own row and in
@@ -83,7 +94,6 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
                 onClick={() => (form && !form.editing ? closeForm() : startNew())}>+ new</button>}
         {canManage && (
           <button className={`edit-prompts ${managing ? BTN_ACTION_ON : BTN_ACTION}`}
-                  aria-pressed={managing}
                   onClick={toggleManage}>{managing ? 'done' : 'edit'}</button>
         )}
         {/* Only exists when it can do something. The prompts that ship are now
@@ -97,7 +107,7 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
       </div>
 
       <div className={CHIP_ROW}>
-      {prompts.map(p => {
+      {prompts.map((p, i) => {
         const editing = form?.editing === p.label
         // Three mutually exclusive looks, never appended to one another: a
         // toggle (armed or not), or — in edit mode — a target, or the one
@@ -108,7 +118,10 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
         return (
           <div className="group" key={p.label}>
             <button className={look}
+                    aria-pressed={managing ? undefined : armed.includes(p.label)}
+                    aria-keyshortcuts={i < 9 && !managing ? `Alt+${i + 1}` : undefined}
                     ref={el => { el ? chips.current.set(p.label, el) : chips.current.delete(p.label) }}
+                    onMouseDown={e => e.preventDefault()}
                     onClick={() => (managing ? startEdit(p) : onToggle(p.label))}>{p.label}</button>
             {/* A floating preview of what gets appended — absolute, so opening it
                 never pushes a button around. Armed state is the button's own tint.
@@ -117,9 +130,10 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
                 group-HAS-, not group-focus-visible: the group is this div, which
                 can't take focus — the button inside it does. */}
             <div className="snippet pointer-events-none absolute bottom-full right-3 left-3 z-20
-                            mb-1.5 hidden rounded-md border border-edge bg-control px-2.5 py-1.5
-                            text-[11px] leading-snug text-ink shadow-lg
+                            mb-1.5 hidden rounded-md border border-edge bg-control-hi px-2.5 py-1.5
+                            text-[11px] leading-snug text-ink shadow-xl shadow-black/70
                             group-hover:block group-has-[:focus-visible]:block">
+              {i < 9 && <span className="mr-1.5 font-semibold text-armed">⌥{i + 1}</span>}
               {p.text}
             </div>
           </div>
@@ -140,9 +154,21 @@ export default function Prompts({ prompts, armed, onToggle, onAdd, onUpdate, onD
       {/* data-own-enter tells App's global handler that Enter in here submits
           this form instead of sending the message. */}
       {form && (
-        <form data-own-enter className="flex flex-col gap-2" onSubmit={submit}
-              onKeyDown={e => { if (e.key === 'Escape') escape() }}>
-          {form.editing && <p className={`hint ${HINT}`}>editing “{form.editing}”</p>}
+        <form data-own-enter className="flex flex-col gap-2" onSubmit={submit}>
+          {form.editing && (
+            <div className="flex items-center gap-1">
+              <p className={`hint ${HINT} min-w-0 flex-1`}>editing “{form.editing}”</p>
+              {[[-1, '◀', 'move earlier'], [1, '▶', 'move later']].map(([d, glyph, name]) => {
+                const at = prompts.findIndex(p => p.label === form.editing)
+                const edge = at + d < 0 || at + d >= prompts.length
+                return (
+                  <button key={d} type="button" aria-label={name} aria-disabled={edge}
+                          className={`move ${BTN_ACTION} aria-disabled:opacity-40`}
+                          onClick={() => { if (!edge) onMove(form.editing, d) }}>{glyph}</button>
+                )
+              })}
+            </div>
+          )}
           {/* type="text" is load-bearing: App's ⌘A guard selects on
               `input[type=text]`, which does not match an input with no type */}
           <input className={TEXT_IN} type="text" value={label} autoFocus placeholder="label (button text)"

@@ -7,35 +7,38 @@ before the next is added. (The previous full version lives in git @ 2a92f3f.)
 ## Quick start
 
 ```sh
-cd ui && npm install && npm run build   # panel deps + a dist for serve.py (first time only)
-./bin/claude-s                          # terminal + panel + browser tab, one command
-                                        # run again → session 2, 3, … own ports each
+cd ui && npm install && cd .. && uv sync   # first time only
+./bin/claude-s                             # use mode: terminal + panel + Safari, one command
+./bin/claude-s dev                         # dev mode: the same, plus hot reload
+                                           # run again → session 2, 3, … own ports each
 ```
 
-The launcher opens the Vite dev server (:5173) in Safari, so **everything hot-reloads**:
-edit `ui/src` → the open tab patches itself (HMR); edit `serve.py` → uvicorn
-restarts itself (`--reload`). No rebuild while developing — `npm run build` only
-matters when you want `:800N` (the dist copy uvicorn serves) refreshed.
+Two modes:
 
-Manual equivalent for session 1:
+```
+use  (default)  uvicorn serves the built ui/dist on :800N — no Node, no reloader, ~80 MB
+                claude-s rebuilds ui/dist first if anything in ui/ is newer than it
+dev             Vite on :5172+N (HMR) + uvicorn --reload (watchfiles) on :800N, ~480 MB
+                edit ui/src → the tab patches itself; edit serve.py → uvicorn restarts
+```
+
+Manual equivalent for session 1 (use mode):
 
 ```sh
-ttyd -W -i lo0 -p 7681 tmux new -A -s sb1 -c ~ claude
-SB_SESSION=sb1 SB_TTYD_PORT=7681 uv run uvicorn serve:app --port 8001 --reload
-cd ui && SB_PORT=8001 npm run dev       # :5173, HMR, proxies /config + /send
+tmux new -d -s sb1 -c ~ claude
+ttyd -W -i "$TMPDIR/stepboard-1.sock" -s KILL tmux new -A -s sb1 -c ~ claude
+SB_SESSION=sb1 SB_TTYD_SOCK="$TMPDIR/stepboard-1.sock" uv run uvicorn serve:app --port 8001
 ```
 
-Requires `brew install ttyd tmux`, the `claude` CLI, `uv` (pulls FastAPI +
-uvicorn), and Node.
+Requires `brew install ttyd tmux`, the `claude` CLI, `uv` (pulls FastAPI,
+uvicorn, websockets, watchfiles), and Node.
 
 ## How it works
 
 ```
-you ── type + constraints ──▶ React panel ── POST /send {"text": …} ──▶ serve.py
-                                  │                                     (FastAPI)
-                     GET /config  │  {ttyd_port, session} — pairs the pane    │
-                                  ▼                                  tmux send-keys
-        xterm.js ◀── WebSocket "tty" ──▶ ttyd :768N ◀── tmux "sbN" ── claude
+you ── type + constraints ──▶ React panel ── POST /api/send {"text": …} ──▶ serve.py ── tmux send-keys ──┐
+                                   │                                          (FastAPI)                   │
+        xterm.js ◀── WebSocket /api/ws ──▶ serve.py ◀── unix socket ──▶ ttyd ◀── tmux "sbN" ── claude ◀──┘
 ```
 
 Two doors into one room. The panel draws the terminal **itself** with xterm.js —
@@ -45,16 +48,20 @@ send-keys`). The tmux session survives reloads and restarts: `tmux attach -t sb1
 Claude starts in `~` (`-c ~`), not the repo — only the servers need the repo
 root. `-A` re-attaches a surviving session, which keeps the folder it started in.
 
+Everything the page talks to lives under **`/api`** — `/api/config`, `/api/send`,
+`/api/prompts` and the terminal socket `/api/ws` — so dev mode needs exactly one
+Vite proxy entry, and the page never learns a ttyd port.
+
 Each `claude-s` run adds an independent session — its own tmux, ttyd, and panel:
 
-| session | tmux | ttyd (view) | API + dist (uvicorn) | dev panel (vite) |
-|--------:|------|-------------|----------------------|------------------|
-|       1 | sb1  | 7681        | 8001                 | 5173             |
-|       2 | sb2  | 7682        | 8002                 | 5174             |
-|       N | sbN  | 7680+N      | 8000+N               | 5172+N           |
+| session | tmux | ttyd (unix socket)          | panel + API (uvicorn) | dev panel (vite) |
+|--------:|------|-----------------------------|-----------------------|------------------|
+|       1 | sb1  | `$TMPDIR/stepboard-1.sock`  | 8001                  | 5173             |
+|       2 | sb2  | `$TMPDIR/stepboard-2.sock`  | 8002                  | 5174             |
+|       N | sbN  | `$TMPDIR/stepboard-N.sock`  | 8000+N                | 5172+N           |
 
-The browser opens the vite column; the uvicorn column is the API behind it
-(and still serves the last-built `dist` if you ever want the no-Node panel).
+The terminal reconnects by itself when the socket drops (backoff 100 ms → 5 s).
+When claude exits, press ⏎ in the terminal (or click the pill) to start it again.
 
 ## Keys
 
@@ -64,20 +71,27 @@ The browser opens the vite column; the uvicorn column is the API behind it
 | ⌘J | jump to the CLI — J and K sit in screen order, left pane then panel |
 | ⌘K | jump to the input bar |
 | ⌘A | select the input bar's text |
-| Enter | send · Shift+Enter = newline |
+| ⌥1 … ⌥9 | arm / disarm prompt N (hover a chip to see its number) |
+| Enter | send · Shift+Enter = newline (in the terminal too) |
 | ↑ / ↓ | walk the last 5 messages, once the caret hits the edge |
+
+`/commands` and `!shell` lines are sent exactly as typed; the line under the
+composer shows whatever else will be appended. `?keys` in the URL turns on a
+key-report diagnostic in the status line. "what's new" under the panel lists
+the latest changes.
 
 ## Files
 
-- `serve.py` — FastAPI app, three jobs: `GET /config` says which ttyd/tmux pair,
-  `POST /send` types into tmux, and `/` serves the built panel (heavily
-  commented — it doubles as the HTTP textbook of this project)
+- `serve.py` — FastAPI app: `/api/send` types into tmux, `/api/prompts` is the
+  prompts store, `/api/ws` proxies the terminal to ttyd's socket, and `/` serves
+  the built panel
 - `ui/src/App.jsx` — panel wiring: state, composer, global shortcuts
-- `ui/src/hooks/useTtyd.js` — xterm.js + ttyd's wire protocol in ~60 lines
+- `ui/src/hooks/useTtyd.js` — xterm.js + ttyd's wire protocol + the reconnect policy
 - `ui/src/lib/compose.js` — message + constraints → the text Claude receives
-- `bin/claude-s` — launcher: finds free slot N, starts ttyd + uvicorn, opens panel
+- `ui/src/lib/news.js` — the "what's new" popup's content; bump `NEWS_ID` to show it again
+- `bin/claude-s` — launcher: finds free slot N, starts ttyd + uvicorn (+ vite in dev), opens panel
 - `tests/` — headless browser checks, `npm test` (see `tests/README.md`)
-- `pyproject.toml` + `uv.lock` — Python deps (FastAPI, uvicorn) for `uv run`
+- `pyproject.toml` + `uv.lock` — Python deps (FastAPI, uvicorn, websockets, watchfiles) for `uv run`
 - `package.json` — test deps (Playwright); the panel's own deps live in `ui/`
 - `IDEAS.md` — project notebook: raw ideas → decisions
 
@@ -105,8 +119,8 @@ safe to read, edit or back up by hand — the panel picks up changes on reload.
 a commit.
 
 ```sh
-curl localhost:8001/prompts             # read the store
-curl -X DELETE localhost:8001/prompts   # reset to the BUILTIN seed
+curl localhost:8001/api/prompts             # read the store
+curl -X DELETE localhost:8001/api/prompts   # reset to the BUILTIN seed
 ```
 
 It used to live in browser `localStorage`, which is scoped per ORIGIN — so
@@ -114,8 +128,8 @@ It used to live in browser `localStorage`, which is scoped per ORIGIN — so
 invisible copy, and clearing site data lost the lot. One file fixes all three.
 Two panels open at once is now the normal case, so a write carries the revision
 it read: if the other session got there first the panel says so and reloads
-rather than silently overwriting. Reloading the other tab is how it catches up —
-there is no live push.
+rather than silently overwriting. The other tab catches up when you return to
+it (it re-reads the store on focus) — there is no live push.
 
 Your input **history** is still per-browser localStorage. It is scratch.
 
@@ -133,11 +147,12 @@ PROMPTS
   in that same form with **save**, **cancel** and **delete**. Delete takes two
   presses — the second reads `sure?`. `Esc` backs out of the confirm, then the
   form, then the mode; **done** leaves it too.
+- In the form, **◀ ▶** move the prompt one place; the order is saved.
 - **restore N** only appears when one of the shipped prompts is missing, and
   puts back exactly the missing ones. It leaves an edited prompt alone — delete
   it first if you want the original text back.
 
-A mode rather than a ✎/× per chip is deliberate: the panel is 15rem wide, so
+A mode rather than a ✎/× per chip is deliberate: the panel is at least 15rem wide, so
 icons inside a chip would shrink the arm target and put "delete" one slip away
 from "arm".
 
@@ -160,5 +175,13 @@ send.
 
 ## Security
 
-Every server here is localhost-only (`-i lo0` / uvicorn's `127.0.0.1` default) —
-a web terminal is a full shell. Keep it that way; never expose the 768N/800N ports.
+A web terminal is a full shell, so:
+
+- ttyd listens on a **unix socket** in your private `$TMPDIR` — no TCP port, so no
+  web page can open a WebSocket to it.
+- The page reaches the terminal only through `/api/ws`, which refuses any
+  `Origin` that is not localhost (cross-site WebSocket hijacking).
+- uvicorn stays on `127.0.0.1`, and `TrustedHostMiddleware` refuses any `Host`
+  but `localhost` / `127.0.0.1` (DNS rebinding); non-GET requests from a foreign
+  `Origin` get 403.
+- `tests/security.mjs` checks all of it. Never expose the 800N ports.

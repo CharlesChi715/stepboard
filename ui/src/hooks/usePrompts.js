@@ -13,6 +13,8 @@ export const BUILTIN = [
   { label: 'first principles', text: "Use first principles." },
 ]
 
+const EMPTY = []
+
 const clean = list => (Array.isArray(list) ? list.filter(p => p?.label && p?.text)
                                                  .map(p => ({ label: p.label, text: p.text })) : [])
 
@@ -28,7 +30,7 @@ const clean = list => (Array.isArray(list) ? list.filter(p => p?.label && p?.tex
 // Whatever the old per-browser store held, read as a doc. v1 was a bare array
 // of only YOUR prompts, with BUILTIN implicit in front of them.
 function fromLocalStorage() {
-  let raw = null
+  let raw
   try { raw = JSON.parse(localStorage.getItem(OLD_KEY) || 'null') } catch { return null }
   if (Array.isArray(raw)) return { list: [...BUILTIN, ...clean(raw)], seeded: BUILTIN.map(p => p.label) }
   if (raw && typeof raw === 'object') {
@@ -68,8 +70,7 @@ export function usePrompts(onError) {
   const [doc, setDoc] = useState(null)      // null until the first GET lands
   const [failed, setFailed] = useState(null)
   const revRef = useRef(0)
-  const say = useRef(onError)
-  say.current = onError                     // no re-subscribing just because App re-rendered
+  const loaded = useRef(false)
 
   // One writer. Optimistic, because the panel is talking to a server on
   // localhost and a round-trip of latency on every keystroke-sized edit would
@@ -82,13 +83,13 @@ export function usePrompts(onError) {
     setDoc(next)
     let r
     try {
-      r = await fetch('/prompts', {
+      r = await fetch('/api/prompts', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rev: revRef.current, doc: next }),
       })
     } catch {
-      setDoc(rollback); say.current?.('prompts: server unreachable, not saved', true)
+      setDoc(rollback); onError('prompts: server unreachable, not saved', true)
       return
     }
     const saved = await r.json().catch(() => null)
@@ -96,25 +97,32 @@ export function usePrompts(onError) {
     if (r.status === 409 && saved?.doc) {      // another session wrote first
       revRef.current = saved.rev
       setDoc(saved.doc)
-      say.current?.('prompts changed in another session — reloaded', true)
+      onError('prompts changed in another session — reloaded', true)
       return
     }
-    setDoc(rollback); say.current?.('prompts: save failed', true)
-  }, [doc])
+    setDoc(rollback); onError('prompts: save failed', true)
+  }, [doc, onError])
 
   // First load. Seeding happens HERE and not on the server, so the seed list
   // stays in this file — adding a prompt to the app is still a one-file change.
   useEffect(() => {
-    let alive = true
-    ;(async () => {
+    let alive = true, timer = 0
+    const load = async (attempt = 0) => {
       let got = null
-      try { got = await (await fetch('/prompts')).json() } catch { /* handled below */ }
+      try { got = await (await fetch('/api/prompts')).json() } catch { /* handled below */ }
       if (!alive) return
       // Leave `doc` null on a failed load, so the panel stays "not ready" and
       // shows why. Falling back to an empty list would read as "every prompt
       // was deleted", and worse: adding one from that state would write a store
       // with your real prompts missing from it.
-      if (!got) { setFailed('prompts: could not load'); say.current?.('prompts: could not load', true); return }
+      if (!got) {
+        setFailed('prompts: could not load — retrying')
+        if (!attempt) onError('prompts: could not load', true)
+        timer = setTimeout(() => load(attempt + 1), 1000)
+        return
+      }
+      setFailed(null)
+      loaded.current = true
       revRef.current = got.rev || 0
 
       if (got.doc) {
@@ -140,12 +148,31 @@ export function usePrompts(onError) {
           localStorage.removeItem(OLD_KEY)
         } catch { /* private mode */ }
       }
-    })()
-    return () => { alive = false }
-  }, [])                                    // once — commit's identity must not re-run this
+    }
+    load()
+    return () => { alive = false; clearTimeout(timer) }
+  }, [])                                    // eslint-disable-line react-hooks/exhaustive-deps
 
-  const list = doc?.list ?? []
-  const seeded = doc?.seeded ?? []
+  useEffect(() => {
+    const refresh = async () => {
+      if (document.hidden || !loaded.current) return
+      const seen = revRef.current
+      let got
+      try { got = await (await fetch('/api/prompts')).json() } catch { return }
+      if (!got?.doc || got.rev === seen || revRef.current !== seen) return
+      revRef.current = got.rev
+      setDoc({ list: clean(got.doc.list), seeded: got.doc.seeded || [] })
+    }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [])
+
+  const list = doc?.list ?? EMPTY
+  const seeded = doc?.seeded ?? EMPTY
 
   // Shared gate for add and update. `keep` is the label being renamed, which is
   // allowed to collide with itself — fixing only the text is not a duplicate.
@@ -179,6 +206,16 @@ export function usePrompts(onError) {
     return null
   }, [check, commit, list, seeded])
 
+  const move = useCallback((label, delta) => {
+    const i = list.findIndex(p => p.label === label)
+    const j = i + delta
+    if (i < 0 || j < 0 || j >= list.length) return null
+    const next = [...list]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    commit({ list: next, seeded })
+    return null
+  }, [commit, list, seeded])
+
   const remove = useCallback(label => {
     if (!list.some(p => p.label === label)) return 'that prompt is gone'
     commit({ list: list.filter(p => p.label !== label), seeded })
@@ -200,5 +237,5 @@ export function usePrompts(onError) {
   }, [commit, list, missing, seeded])
 
   return { prompts: list, ready: doc !== null, error: failed,
-           add, update, remove, restore, missing: missing.length }
+           add, update, remove, move, restore, missing: missing.length }
 }

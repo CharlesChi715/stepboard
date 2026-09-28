@@ -1,168 +1,70 @@
 # StepBoard (from scratch) — SUMMARY
 
+## Goal
+
+- Charles learns by building: his own web panel beside the real Claude Code CLI.
+- Mentor mode by default: ≤2-line steps, Charles writes the code; Claude writes it only when asked.
+
 ## Files
 
 ```
 stepboard/
-├── serve.py            # FastAPI: /config (pairing), POST /send → tmux,
-│                       #   GET/PUT/DELETE /prompts → prompts.json, serves ui/dist
-├── ui/                 # React + Vite + Tailwind v4 (npm run dev :5173 · build → ui/dist)
+├── serve.py            # FastAPI under /api: config · send (tmux) · prompts (prompts.json)
+│                       #   · ws (proxy → ttyd unix socket); serves ui/dist at /
+├── ui/                 # React 19 + Vite 8 + Tailwind v4 (npm run dev · build → ui/dist · lint)
 │   └── src/
-│       ├── App.jsx     # state, composer, global shortcuts
-│       ├── styles.css  # Tailwind import + @theme palette — no hand-written rules
-│       ├── components/ # MessageBar · Constraints · Prompts · History · Badge
-│       ├── hooks/      # useTtyd (xterm.js + ttyd protocol) · useHistory (localStorage)
-│       │               #   · usePrompts (server: /prompts)
-│       └── lib/        # compose.js — message + constraints → text · ui.js — class strings
-├── bin/claude-s        # launcher — session N: ttyd :768N + uvicorn :800N + vite :5172+N
-├── tests/              # headless checks: harness · parity · regressions · drag-select
-├── package.json        # test deps (Playwright) + `npm test`
-├── pyproject.toml      # deps: fastapi, uvicorn (run via uv)
-├── IDEAS.md            # Charles's idea notebook — raw dump → pitch → decisions
-├── README.md           # quick start, pipeline chart, ports table, keys, customization
-└── .ai/WORKLOG.md      # dated work history (ask Charles before reading)
+│       ├── App.jsx     # state, composer, global keys (useEffectEvent), layout
+│       ├── styles.css  # Tailwind import + @theme palette, --width-panel
+│       ├── components/ # MessageBar · Constraints · Prompts · History · Badge · LinkPill · WhatsNew
+│       ├── hooks/      # useTtyd (xterm + ttyd protocol + reconnect) · useHistory · usePrompts
+│       └── lib/        # compose.js (raw/tail/send) · ui.js (class strings, FOCUS) · news.js
+├── bin/claude-s        # launcher: `claude-s` = use mode, `claude-s dev` = HMR
+├── tests/              # proxy · typed.py · security · parity · regressions · drag-select · resilience
+├── package.json        # Playwright + `npm test` (pretest = lint + build)
+├── pyproject.toml      # fastapi, uvicorn, websockets, watchfiles (via uv)
+├── IDEAS.md            # Charles's idea notebook
+└── .ai/WORKLOG.md      # dated history (ask Charles before reading)
 ```
 
-## Goal
+## Current state (2026-09-29)
 
-- Charles learns by building: his own web panel beside the real Claude Code CLI.
-- Mentor mode: Claude gives ≤2-line steps; Charles does the work himself and
-  Claude only writes code when explicitly asked.
+- Stack per session N: tmux `sbN` (claude pre-started in `~`) · ttyd on `$TMPDIR/stepboard-N.sock`
+  with `-s KILL` · uvicorn :800N · (dev) Vite :5172+N. Safari opens once `/api/config` answers.
+- `use` mode serves ui/dist from uvicorn (~80 MB, 0% idle CPU), rebuilding if ui/ is newer.
+  `dev` = Vite HMR + `uvicorn --reload` on watchfiles, with absolute `--reload-exclude` paths.
+- Security: no TCP ttyd; `/api/ws` refuses foreign Origin; TrustedHost refuses foreign Host;
+  non-GET from a foreign Origin → 403. `tests/security.mjs` guards it.
+- Terminal: page connects to same-origin `/api/ws`. Close 1000 (or tmux `[exited]`) = claude
+  ended → ⏎/pill restarts; anything else → backoff 100 ms→5 s, 8 tries, then ⏎ to retry.
+- `/api/send`: checks tmux's exit code (503/504 → status line, draft kept); ≤400-char text sent
+  as-is with a trailing `;` escaped; longer text in 400-char pieces joined by ESC[I (stays under
+  Claude's 800-char paste threshold). Enter is always a SEPARATE tmux call.
+- Composer: `/cmd` and `!shell` go raw (no clauses/prompts); the tail line shows what gets appended.
+- Keys: ⌘J term · ⌘K composer · ⌘⇧L grab · ⌥1–9 prompts · ⇧⏎ newline (terminal too).
+  Option-as-Meta is OFF on purpose: ⌥O would toggle Claude's fast mode (credits).
+- What's new: `lib/news.js`; bump `NEWS_ID` to show the popup once more. Tests pre-mark it seen.
 
-## Current state (2026-08-29)
+## Invariants (don't break)
 
-- Styling is Tailwind v4 (`@tailwindcss/vite`). `styles.css` is just the Tailwind
-  import + an `@theme` palette; shared class strings live in `ui/src/lib/ui.js`.
-- The panel is dark, sitting a hair above the terminal's hardcoded #000 so the
-  window reads as one tool. Palette: `bg`/`card`/`control*` surfaces, `edge*`
-  lines, `ink`/`muted` text, `armed`/`danger`/`good` state. State colours are
-  lifted from the old light values, which went muddy on a near-black ground.
-- `scheme-dark` on `<body>` is what darkens the NATIVE bits — radio/checkbox
-  ticks, number spinners, scrollbars; `accent-armed` tints the ticks themselves.
-- Send is the only solid-accent control (it is the primary action); an armed
-  prompt is tinted, so the two never compete. Focus rings are explicit
-  (`focus-visible:ring`) because the native ring is invisible on dark.
-- Every text/background pair clears WCAG AA (lowest is armed-on-tinted, 4.99:1).
-- Preflight is ON, so it strips native button/input chrome and `ui.js` rebuilds
-  it. Same-kind utilities on one element are resolved by stylesheet order, not
-  className order — so `BTN`/`BTN_ON` and the fieldset frames are mutually
-  exclusive, never appended.
-- `xterm.css` is imported unlayered on purpose: preflight sits in `@layer base`,
-  and unlayered rules outrank every layered one. Rules reaching into xterm's own
-  DOM survive as descendant variants on the host div (`[&_.xterm]:h-full`).
-- `.prompts` no longer needs `!important` — a fieldset carries its own classes.
-- Stack: `./bin/claude-s` → ttyd+tmux (`sbN`, :768N) + FastAPI (:800N, `--reload`)
-  + vite dev server (:5172+N, HMR) — Safari opens vite (`open -a Safari`, not the
-  default browser); everything hot-reloads.
-- claude starts in `~` (`tmux new … -c ~`); the repo root is only uvicorn/vite's
-  cwd. `-A` re-attaches a surviving `sbN`, which keeps its original folder.
-- claude-s tags each child's output with a colored `label │` prefix (ttyd/api/
-  vite), strips timestamp+N:/INFO: noise, keeps W:/E:, prints a ports banner.
-  Vite's stream is visible (was >/dev/null); ⌘⇧L leaves the caret on a fresh line.
-- The product URL (`http://localhost:517N`) is the one thing to spot in that
-  scroll, so it is a solid block — bold black on bright green (`$URL`) — in
-  the banner, in vite's `Local:` line, and on its own `▶ OPEN` line printed
-  just before `open`; uvicorn's :800N URL stays plain — it is not the page.
-- The panel draws the terminal itself with xterm.js (no iframe), so the terminal
-  selection is readable — that is what ⌘⇧L needs.
-- Selection → input is keyboard-only: the "take terminal selection" button is
-  gone, ⌘⇧L remains. Grabbing consumes the selection — `takeSelection` calls
-  `term.clearSelection()`, so the highlight strip disappears once the text is in
-  the input. `lastSel` still holds it, so a repeat ⌘⇧L pastes the same text.
-- Copy-on-select: every selection also goes to the clipboard (`onSelection` →
-  `navigator.clipboard.writeText`). The badge reads `selected: N chars · copied`
-  or `· clipboard blocked`; tests match the `selected: N chars` prefix, so keep it.
-  Safari allows the write because the re-dispatched mouseup is synchronous.
-- Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
-  safe because xterm emits no bytes for it; a ⌃ combo would need the
-  `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 88 headless checks pass (5 proxy + 70 parity +
-  5 regression + 8 drag-select), run via `npm test`, non-zero exit on failure.
-- Composer defaults: LENGTH = 200 words (picking "words" also pops 200), the
-  ASCII diagram/chart/table box starts unticked.
-  All but `proxy.mjs` need a live stack on `SB_BASE` (default :8011) serving a
-  built `ui/dist`, started with `SB_PROMPTS` pointing somewhere throwaway.
-- There is ONE kind of prompt. `BUILTIN` is a seed for a fresh browser, not a
-  fixture: once seeded, a shipped prompt edits, renames and deletes like any
-  you make. Labels are the identity — App arms by label — so a duplicate is
-  refused, not shadowed. The form carries `data-own-enter`: App's Enter-sends
-  handler is a document CAPTURE listener, so only App can decline it.
-- Prompts live in `prompts.json` next to serve.py — ONE store for every session
-  and every port. localStorage was per-origin, so :5173, :5174 and :8001 each
-  had a private copy. `SB_PROMPTS` overrides the path.
-  `GET /prompts` → `{rev, doc}` (`doc: null` = no file yet, which the panel
-  answers by seeding — an empty `list` is a real state and must not collapse to
-  null). `PUT` carries the rev it read and is refused with 409 + the current doc
-  if stale, because two sessions sharing one file makes a lost write the norm,
-  not an edge case. `DELETE` resets. Writes are tmp + `os.replace`, so a crash
-  cannot truncate the file. The panel writes optimistically and rolls back, or
-  adopts the server's doc on a 409, reporting either on the badge.
-- The doc is `{ list, seeded }`. `list` is every prompt in row order (nothing is
-  prepended at render time, or a seed could never be moved or removed).
-  `seeded` is the seed labels this install has been handed — without it `list`
-  alone cannot tell "I deleted `pro`" from "`pro` was added to the source
-  later", so a new seed could never arrive or a deleted one would come back
-  every load.
-- A plain page load must NEVER write. The seed-merge returns null when nothing
-  changed, and that is load-bearing: it once returned a freshly built object, an
-  identity check read "changed" every load, and two open sessions bumped rev
-  past each other until the next real edit died on a 409. Parity guards it.
-- Old per-browser stores (`sb-prompts`, either shape) are adopted ONCE when the
-  server has no file, then the key is renamed `sb-prompts-migrated` — otherwise
-  deleting prompts.json to reset would quietly resurrect them.
-- Vite's dev proxy must list EVERY route the panel fetches (`API_ROUTES` in
-  ui/vite.config.js). A missing one does not 404 — Vite serves index.html with
-  status 200, `res.json()` throws, and the feature silently reads as empty.
-  That is how /prompts shipped dead: the built panel (one origin, no proxy) and
-  every browser test were fine, because none of them crossed Vite. `proxy.mjs`
-  greps ui/src for fetch() paths and fails if one is unlisted — no browser
-  needed, so it runs first.
-- A store that cannot be READ leaves `doc` null and says so in the card. It must
-  never fall back to an empty list: that reads as "all your prompts were
-  deleted", and adding one from there would write a store with the real ones
-  missing.
-- `/config` reports `prompts` + `prompts_default`. The test harness wipes the
-  store before every suite, so it refuses to run unless `SB_PROMPTS` was set —
-  without that interlock `npm test` would eat your real prompts.
-- The PROMPTS card is two levels: an actions row (`+ new` · `edit` · `restore`,
-  `BTN_ACTION`, small and muted) ABOVE the chips row (`CHIP_ROW`). They used to
-  share one wrap row and one style, which made a control read as a prompt.
-- `edit` mode, not a ✎/× per chip: the panel is 15rem, so icons inside a chip
-  would shrink the arm target and put "delete" one slip from "arm". In the mode
-  every chip is a dashed-green target (`BTN_TARGET`) and pressing one reopens
-  the `+ new` form with save/cancel/delete. Delete takes two presses (`sure?`,
-  `BTN_DANGER`) and needs no dialog — the form shows what you would lose.
-  Escape unwinds confirm → form → mode, which only works because closing the
-  form focuses its chip again.
-- `restore N` appears only when a seed is missing, and is the ONLY way back
-  from deleting a shipped prompt. So the mode stays reachable on an empty row
-  (`canManage = prompts.length || missing`) — guarding on length alone would
-  hide the one control that undoes deleting everything.
-- `usePrompts` is add/update/remove/restore over one `commit`; update edits in
-  place, so fixing a typo never sends a prompt to the end of the row. App wraps
-  update/remove to carry a rename into `armed` and sweep a delete out of it.
-- No `basis-full` anywhere in the prompts card now that it is flex-COL: it once
-  opened a ~100px hole in the form, because flex-basis is the MAIN axis — full
-  width in a wrapping row, full HEIGHT in a column. Only the chips row is
-  flex-row, and its children are chips.
-- Drag in the terminal selects text even while Claude Code has mouse reporting
-  on: mouse events are re-dispatched as alt-carrying clones (force selection).
-  Never force shift too — that makes xterm extend a selection instead of
-  starting one. A left mousedown is held until it moves ≥4px (→ drag, alt
-  clones) or is released in place (→ click, re-sent WITHOUT alt, so Claude Code
-  gets it). Double/triple-click stay word/line selection.
-- Idle mousemoves pass straight to the app, so Claude Code's hover (and the
-  clicks that act on it) work like the native CLI. Cost: xterm treats its own
-  motion report as input and clears the highlight on the next twitch — fine,
-  because copy-on-select already copied it and `lastSel` keeps it for ⌘⇧L.
-- Multi-session: env pair `SB_SESSION`/`SB_TTYD_PORT`; panel asks GET /config.
-- 2026-08-22 tidy-up: `web/` (vanilla page + /legacy route) deleted — history
-  has it at `git show 49f09b0:web/index.html`; tests share `tests/harness.mjs`;
-  serve.py fails fast when `ui/dist` is missing.
+- xterm must own the selection (no iframe); drag-select = alt-carrying clone events; never
+  force shift; plain click / idle hover pass through to Claude.
+- Copy-on-select is synchronous in Safari's mouseup; badge text starts `selected: N chars`.
+- Terminal padding lives on `.xterm`, never the host (FitAddon would fit a row too many).
+- Safari never focuses a clicked button: Escape in the prompt editor is heard at the document
+  (skipping `.term`); panel action buttons cancel mousedown to keep the composer's caret.
+- Prompts: one store, labels are identity, `{list, seeded}`, rev + 409, a page load NEVER writes,
+  re-read on focus never writes, an unreadable store never renders as empty.
+- Every path the page calls starts with `/api` (Vite proxies only that; `tests/proxy.mjs`).
+- Tests: `npm test` needs a throwaway stack with `SB_PROMPTS` set (tests/README.md);
+  128 checks pass on Chromium and WebKit, ~10 s, no fixed sleeps.
+
+## Decided against (don't re-propose)
+
+- Bun port (2026-09-14) · xterm 6 / WebGL (no visible gain, risks selection) · ui-monospace
+  (breaks box edges in Safari's DOM renderer) · React Compiler (crashes Prompts, no gain) ·
+  Preact (−53 KB gz ≈ 15 ms on loopback) · gzip in FastAPI · web fonts · bracketed paste.
 
 ## Next potential steps
 
-- Charles: confirm drag-select + ⌘⇧L in Safari (only Chromium is covered) — the
-  launcher opens Safari now, and Safari binds ⌘⇧L (sidebar) and ⌘J itself.
-- Later: auto-reconnect when ttyd drops · error handling (dead tmux) ·
-  reorder prompts (edit/delete now exist; order is still fixed).
+- Charles: try the build in real Safari (⌘⇧L vs Safari's sidebar key, drag-select, bell dot).
+- Maybe: one merged settings card / segmented Length control; `tmux status off` if the bar bothers.

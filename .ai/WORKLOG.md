@@ -506,3 +506,13 @@
 - Constraints.jsx: UNIT_DEFAULTS.words 100 → 200.
 - parity: 'chart clause off by default' + 'length defaults to 200 words'.
   npm test 88/88. Branch: worktree-chart-off-default.
+
+## 2026-09-29 — optimize all waves (fast · light · safe · IxD)
+
+- Researched with an 8-lens agent workflow (51 findings, each adversarially verified), then built every kept item on branch worktree-optimize-all-waves.
+- Security: ttyd moved to a unix socket, terminal proxied at /api/ws with Origin checks, TrustedHost + cross-site 403.
+- Speed/weight: ttyd -s KILL (reload blank ~640 → ~40 ms), watchfiles reloader, use/dev launcher modes, readiness wait, claude pre-start, immutable hashed assets, Vite 8.
+- Send: tmux exit codes surfaced, trailing ; escaped, long text in 400-char pieces, raw /cmd and !shell, tail hint.
+- Terminal: close-code reconnect policy + pill, unicode11, Shift+Enter newline, tab title + bell, selection colour, first-fit + debounced refit, padding fix.
+- Panel: compose-first layout, field-sizing composer, clamp width, focus outlines, muted contrast, aria-pressed chips, keep-caret clicks, ⌥1–9, prompt reorder, history draft fix, status line, what's-new popup.
+- Tests: deterministic (no sleeps), lint + build pretest, new security/resilience/typed suites, WebKit run; 128/128 on Chromium and WebKit, ~10 s. WebKit caught a real Safari Escape bug (fixed).

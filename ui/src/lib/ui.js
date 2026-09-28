@@ -8,29 +8,29 @@
 // `text-muted text-danger`, `px-2 p-3`) are decided by stylesheet order, NOT
 // className order. So every pairing below is mutually exclusive, never additive.
 
-// Everything clickable shares this: chrome, motion, and a focus ring. The ring
-// matters more here than on the old light theme — the native one is invisible
-// against a near-black panel.
+// Everything clickable shares this: chrome, motion, and a focus outline. It sits
+// 2px off the control, so it never blends into an armed or solid-accent fill.
+export const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-armed'
+
 const CTRL =
   'cursor-pointer touch-manipulation rounded-md border border-edge bg-control text-ink ' +
   'transition-colors hover:bg-control-hi active:bg-control-on ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+  FOCUS
 
 export const BTN = `${CTRL} px-2.5 py-1.5`
 
-// Send is the panel's primary action but used to look exactly like `history`
-// and `summarize`. It is the only solid-accent control on the page.
-export const BTN_BIG =
-  'cursor-pointer touch-manipulation rounded-lg border border-armed bg-armed px-3 py-3 ' +
-  'text-base font-semibold text-bg transition-colors hover:bg-armed-hi active:bg-armed ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+// Send is the panel's primary action. It is the only solid-accent control on the page.
+export const BTN_SEND =
+  'cursor-pointer touch-manipulation rounded-md border border-armed bg-armed px-3 py-1 ' +
+  'text-[13px] font-semibold text-bg transition-colors hover:bg-armed-hi active:bg-armed ' +
+  FOCUS
 
 // An armed prompt — a whole alternative to BTN, never appended to it. Tinted
 // rather than solid, so it reads as "on" without competing with Send.
 export const BTN_ON =
   'cursor-pointer touch-manipulation rounded-md border border-armed bg-armed/15 px-2.5 py-1.5 ' +
   'text-armed transition-colors hover:bg-armed/25 ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+  FOCUS
 
 // A prompt while the row is in `edit` mode. It is no longer a toggle but a
 // target, so it drops the armed blue entirely — dashed says "not a switch",
@@ -38,7 +38,7 @@ export const BTN_ON =
 export const BTN_TARGET =
   'cursor-pointer touch-manipulation rounded-md border border-dashed border-good/60 ' +
   'bg-good/10 px-2.5 py-1.5 text-good transition-colors hover:bg-good/20 ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-good/60'
+  FOCUS
 
 // A control that acts ON the prompts (+ new · edit · restore) rather than
 // being one. It sits in its own row above the chips AND is smaller and quieter
@@ -47,21 +47,21 @@ export const BTN_TARGET =
 export const BTN_ACTION =
   'cursor-pointer touch-manipulation rounded-md border border-transparent bg-transparent px-2 py-1 ' +
   'text-[11px] text-muted transition-colors hover:bg-control hover:text-ink ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+  FOCUS
 
 // …the same control while its mode is on. Tinted, not solid — it is still a
 // secondary control, so it must not out-shout an armed prompt or Send.
 export const BTN_ACTION_ON =
   'cursor-pointer touch-manipulation rounded-md border border-armed/50 bg-armed/15 px-2 py-1 ' +
   'text-[11px] text-armed transition-colors hover:bg-armed/25 ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+  FOCUS
 
 // The second press of a two-press delete. Red is spent here and nowhere else,
 // so it only ever appears on the one control that destroys something.
 export const BTN_DANGER =
   'cursor-pointer touch-manipulation rounded-md border border-danger bg-danger/15 px-2.5 py-1.5 ' +
   'text-danger transition-colors hover:bg-danger/25 ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60'
+  FOCUS
 
 // A line of explanation inside a card — quieter than its controls. No basis
 // here: flex-basis is the MAIN axis, so `basis-full` reads as full WIDTH in the
@@ -92,15 +92,15 @@ export const LEGEND_BARE = LEGEND_BASE                       // edits tints its 
 export const LABEL = 'touch-manipulation'
 export const NUM =
   'mx-1.5 w-14 rounded-md border border-edge bg-control px-1.5 py-1 text-ink touch-manipulation ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+  FOCUS
 // accent-armed tints the native tick itself; without it macOS draws its own blue
 export const TICK = 'mr-2 accent-armed align-middle touch-manipulation'
 
 // Free text — same chrome as NUM, but it fills the width it is given instead of
-// sitting mid-sentence. The panel is 15rem wide, so these fields always stack.
+// sitting mid-sentence. The panel is at least 15rem wide, so these fields always stack.
 export const TEXT_IN =
   'w-full rounded-md border border-edge bg-control px-2 py-1 text-ink touch-manipulation ' +
-  'placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-armed/60'
+  'placeholder:text-muted ' + FOCUS
 
 // The terminal host. xterm.js builds its own DOM inside, so those elements are
 // only reachable with descendant variants from out here.
@@ -113,8 +113,8 @@ export const TEXT_IN =
 //   gutter is painted by the OS as a light bar — a white strip between the two
 //   panes. Styling ::-webkit-scrollbar makes Chromium draw our own instead.
 export const TERM =
-  'term min-w-0 flex-1 overflow-hidden bg-black py-1 pl-1.5 ' +
-  '[&_.xterm]:h-full ' +
+  'term min-w-0 flex-1 overflow-hidden bg-black ' +
+  '[&_.xterm]:h-full [&_.xterm]:py-1 [&_.xterm]:pl-1.5 ' +
   '[&_.xterm-viewport::-webkit-scrollbar]:w-2.5 ' +
   '[&_.xterm-viewport::-webkit-scrollbar]:bg-black ' +
   '[&_.xterm-viewport::-webkit-scrollbar-thumb]:rounded-full ' +

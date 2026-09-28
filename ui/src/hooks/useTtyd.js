@@ -1,32 +1,62 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
 
 // The left pane. We run xterm.js ourselves and speak ttyd's tiny protocol, so
 // the selection belongs to this page — that is what makes ⌘⇧L possible.
 //
-//   keys  ──▶ xterm ──ws "0"+data──▶ ttyd ──▶ tmux ──▶ claude
-//   screen ◀── xterm ◀─ws "0"+bytes── ttyd ◀───────────────┘
+//   keys  ──▶ xterm ──ws "0"+data──▶ /api/ws ──▶ ttyd (unix socket) ──▶ tmux ──▶ claude
+//   screen ◀── xterm ◀─ws "0"+bytes── /api/ws ◀── ttyd ◀────────────────────────────┘
+const EXITED = /\[(exited|server exited|lost server|detached)/
+const MAX_TRIES = 8
+
 export function useTtyd({ onSelection } = {}) {
   const hostRef = useRef(null)
   const termRef = useRef(null)
+  const restartRef = useRef(null)
   const lastSel = useRef('')                 // survives a selection cleared by focus loss
+  const [link, setLink] = useState('connecting')
+  const onSel = useEffectEvent(s => onSelection?.(s))
 
   useEffect(() => {
     const term = new Terminal({
       fontSize: 13, fontFamily: 'Menlo, monospace', cursorBlink: true,
-      scrollback: 10000, theme: { background: '#000000' },
+      scrollback: 10000, allowProposedApi: true,
+      theme: {
+        background: '#000000',
+        selectionBackground: 'rgba(107,138,253,0.32)',
+        selectionInactiveBackground: 'rgba(107,138,253,0.16)',
+      },
       macOptionClickForcesSelection: true,   // xterm's force-selection lever on macOS…
       altClickMovesCursor: false,            // …without Option-click typing arrow keys
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
+    term.loadAddon(new Unicode11Addon())
+    term.unicode.activeVersion = '11'
     term.open(hostRef.current)
     termRef.current = term
 
-    // the right panel is laid out after us, so fit on every size change, not once
-    const ro = new ResizeObserver(() => { try { fit.fit() } catch { /* pre-layout */ } })
+    const refit = () => { try { fit.fit() } catch { return } }
+    refit()
+    let settle = 0
+    const ro = new ResizeObserver(() => {
+      if (!settle) refit()
+      clearTimeout(settle)
+      settle = setTimeout(() => { settle = 0; refit() }, 150)
+    })
     ro.observe(hostRef.current)
+
+    term.attachCustomKeyEventHandler(e => {
+      if (isGrabKey(e)) return false
+      if (e.isComposing) return true
+      if (e.key === 'Enter' && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (e.type === 'keydown') { e.preventDefault(); term.input('\n') }
+        return false
+      }
+      return true
+    })
 
     // Drag = select text, like any editor. Claude Code turns on all-motion mouse
     // reporting, so without this a drag is forwarded to the app, which pans its
@@ -80,53 +110,89 @@ export function useTtyd({ onSelection } = {}) {
     const MOUSE = ['mousedown', 'mousemove', 'mouseup', 'click', 'dblclick']
     MOUSE.forEach(t => document.addEventListener(t, forceSelect, true))
 
-    const enc = new TextEncoder(), dec = new TextDecoder()
-    let sock = null
-    const live = () => sock && sock.readyState === WebSocket.OPEN
+    let title = 'StepBoard', unread = false
+    const show = () => { document.title = (unread ? '● ' : '') + title }
+    const offTitle = term.onTitleChange(t => { title = t || 'StepBoard'; show() })
+    const offBell = term.onBell(() => { if (!document.hasFocus()) { unread = true; show() } })
+    const seen = () => { if (unread) { unread = false; show() } }
+    window.addEventListener('focus', seen)
 
-    const offData = term.onData(d => { if (live()) sock.send(enc.encode('0' + d)) })
+    const enc = new TextEncoder(), dec = new TextDecoder()
+    const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`
+    let sock = null, tries = 0, timer = 0, opened = false, ended = false, last = new Uint8Array()
+    let dead = false
+    const live = () => sock?.readyState === WebSocket.OPEN
+
+    const offData = term.onData(d => {
+      if (live()) sock.send(enc.encode('0' + d))
+      else if (ended && d === '\r') restart()
+    })
     const offSize = term.onResize(() => { if (live()) sock.send(
       enc.encode('1' + JSON.stringify({ columns: term.cols, rows: term.rows }))) })
     const offSel = term.onSelectionChange(() => {
       const s = term.getSelection()
-      if (s) { lastSel.current = s; onSelection?.(s) }
+      if (s) { lastSel.current = s; onSel(s) }
     })
 
-    let dead = false                          // cleanup may run while /config is still in flight
-    const connect = port => {
-      if (dead) return                        // …in which case never open the socket at all
-      sock = new WebSocket(`ws://127.0.0.1:${port}/ws`, ['tty'])   // ttyd insists on this subprotocol
-      sock.binaryType = 'arraybuffer'
-      sock.onopen = () => sock.send(enc.encode(JSON.stringify(     // ttyd's handshake, always first
-        { AuthToken: '', columns: term.cols, rows: term.rows })))
-      sock.onmessage = e => {
-        const b = new Uint8Array(e.data)
-        switch (String.fromCharCode(b[0])) {                       // first byte = what this is
-          case '0': term.write(b.slice(1)); break                  //   output → screen
-          case '1': document.title = dec.decode(b.slice(1))        //   window title
-        }
+    const connect = () => {
+      if (dead) return
+      clearTimeout(timer)
+      const ws = sock = new WebSocket(url, ['tty'])             // ttyd insists on this subprotocol
+      ws.binaryType = 'arraybuffer'
+      ws.onopen = () => {
+        if (opened) term.reset()                                 // tmux redraws the whole screen
+        opened = true; tries = 0; ended = false
+        ws.send(enc.encode(JSON.stringify({ AuthToken: '', columns: term.cols, rows: term.rows })))
+        setLink('live')
       }
-      sock.onclose = () => term.write('\r\n\x1b[33m[ttyd gone — reload the page]\x1b[0m\r\n')
-      term.focus()
+      ws.onmessage = e => {
+        const b = new Uint8Array(e.data)
+        if (b[0] === 48) { last = b.subarray(1); term.write(last) }   // "0" = output → screen
+      }
+      ws.onclose = e => {
+        if (dead || ws !== sock) return
+        if (e.code === 1000 || EXITED.test(dec.decode(last))) {
+          ended = true
+          term.write('\r\n\x1b[2m[claude exited — press ⏎ here to restart]\x1b[0m\r\n')
+          return setLink('ended')
+        }
+        if (tries >= MAX_TRIES) {
+          ended = true
+          term.write('\r\n\x1b[33m[terminal unreachable — press ⏎ here to retry]\x1b[0m\r\n')
+          return setLink('unreachable')
+        }
+        setLink('retrying')
+        timer = setTimeout(connect, Math.min(5000, 100 * 2 ** tries++))
+      }
     }
-    fetch('/config').then(r => r.json())
-      .then(c => connect(c.ttyd_port)).catch(() => connect(7681))
+    const restart = () => { ended = false; tries = 0; setLink('connecting'); connect() }
+    restartRef.current = restart
+
+    const wake = () => {
+      if (dead || document.hidden || ended || live() || sock?.readyState === WebSocket.CONNECTING) return
+      tries = 0
+      connect()
+    }
+    window.addEventListener('pageshow', wake)
+    document.addEventListener('visibilitychange', wake)
+
+    connect()
+    term.focus()
 
     return () => {                          // StrictMode mounts twice in dev: leave nothing behind
       dead = true
+      clearTimeout(timer); clearTimeout(settle)
       MOUSE.forEach(t => document.removeEventListener(t, forceSelect, true))
-      offData.dispose(); offSize.dispose(); offSel.dispose()
+      window.removeEventListener('focus', seen)
+      window.removeEventListener('pageshow', wake)
+      document.removeEventListener('visibilitychange', wake)
+      offData.dispose(); offSize.dispose(); offSel.dispose(); offTitle.dispose(); offBell.dispose()
       ro.disconnect()
       if (sock) { sock.onclose = null; sock.close() }
       term.dispose()
       termRef.current = null
+      restartRef.current = null
     }
-  }, [])                                    // eslint-disable-line react-hooks/exhaustive-deps
-
-  // xterm must not swallow our shortcut (returning false = "not yours").
-  // The key report lives in App's document listener, so it sees panel keys too.
-  useEffect(() => {
-    termRef.current?.attachCustomKeyEventHandler(e => !isGrabKey(e))
   }, [])
 
   const takeSelection = useCallback(() => {
@@ -138,8 +204,9 @@ export function useTtyd({ onSelection } = {}) {
 
   // ⌘J: the left pane has exactly one focus target — xterm's hidden textarea
   const focusTerm = useCallback(() => termRef.current?.focus(), [])
+  const restart = useCallback(() => { restartRef.current?.(); termRef.current?.focus() }, [])
 
-  return { hostRef, takeSelection, focusTerm }
+  return { hostRef, takeSelection, focusTerm, link, restart }
 }
 
 // ⌘⇧L, plus ⌃⇧L as a spare in case a browser reserves the ⌘ combo.

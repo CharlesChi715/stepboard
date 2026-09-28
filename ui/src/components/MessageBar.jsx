@@ -8,7 +8,7 @@ export default function MessageBar({ value, setValue, onSend, hist, onBlurSave, 
 
   const onKeyDown = e => {
     const el = e.currentTarget
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); return }
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); onSend(); return }
 
     if (e.key === 'ArrowUp' && (el.selectionStart === 0 || idx.current !== -1)
         && idx.current + 1 < hist.length) {
@@ -27,15 +27,15 @@ export default function MessageBar({ value, setValue, onSend, hist, onBlurSave, 
   return (
     <textarea
       ref={inputRef}
-      className="min-h-[150px] touch-manipulation rounded-lg border border-edge bg-control px-2.5
-                 py-2 text-ink placeholder:text-muted focus-visible:outline-none
-                 focus-visible:ring-2 focus-visible:ring-armed/60"
+      className="field-sizing-content max-h-[45vh] min-h-[150px] resize-none touch-manipulation
+                 bg-transparent px-2.5 py-2 text-ink outline-none placeholder:text-muted"
       value={value}
       autoCorrect="off"
       autoCapitalize="off"
       spellCheck={false}
       autoComplete="off"
-      placeholder="Type to Claude… (Enter sends, Shift+Enter = newline)"
+      aria-label="message to Claude"
+      placeholder="Type to Claude… Enter sends · ⇧Enter newline · ↑ history"
       onChange={e => { idx.current = -1; setValue(e.target.value) }}  // editing = it's yours now
       onKeyDown={onKeyDown}
       onBlur={() => onBlurSave(value)}

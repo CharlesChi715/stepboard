@@ -7,6 +7,7 @@
    panel sits a hair above that rather than fighting it — one window, two panes. */
 @theme {
   --default-font-family: system-ui;
+  --width-panel: clamp(15rem, 22vw, 26rem);
 
   /* surfaces, darkest to lightest */
   --color-bg: #0a0a0c;          /* the panel itself */
@@ -21,7 +22,7 @@
 
   /* text */
   --color-ink: #e8e8ec;
-  --color-muted: #8b8b98;
+  --color-muted: #9f9fa9;
 
   /* state. The light theme's #2b44c4 / #c0392b / #1e7a40 all go muddy on a
      near-black ground, so each is lifted until it reads at a glance. */

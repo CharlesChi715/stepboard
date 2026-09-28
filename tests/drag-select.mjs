@@ -1,43 +1,39 @@
-import { suite } from './harness.mjs'
+import { suite, until, frame, termText } from './harness.mjs'
 
-// Drag must select text even while the CLI app has all-motion mouse reporting on.
-// See the long comment in ui/src/hooks/useTtyd.js for why that is not free.
 await suite('drag-select', async ({ page, ok }) => {
-  // give the shell some text, then turn ON all-motion mouse reporting like Claude Code does
+  const shows = async s => until(async () => (await termText(page)).includes(s))
   await page.keyboard.type('echo DRAG_ME_AAAAAAAAAA_BBBBBBBBBB_CCCCCCCCCC\n')
-  await page.waitForTimeout(600)
-  await page.keyboard.type("printf '\\033[?1003h\\033[?1006h'\n")
-  await page.waitForTimeout(600)
+  await shows('\nDRAG_ME_')
+  await page.keyboard.type(`printf '\\033[?1003h\\033[?1006h'; echo MOUSE_""ON\n`)
+  await shows('MOUSE_ON')
 
   const box = await page.locator('.term').boundingBox()
+  const badge = () => page.evaluate(() => document.querySelector('.badge')?.textContent ?? '')
   const drag = async y => {
     await page.mouse.move(box.x + 12, box.y + y)
     await page.mouse.down()
     await page.mouse.move(box.x + 340, box.y + y, { steps: 12 })
     await page.mouse.up()
-    await page.waitForTimeout(250)
   }
 
   await drag(20)
-  const badge = await page.locator('.badge').textContent().catch(() => '')
-  ok('drag selects while mouse reporting is ON', /selected: \d+ chars/.test(badge), badge)
+  ok('drag selects while mouse reporting is ON', await until(async () => /selected: \d+ chars/.test(await badge())), await badge())
 
   await page.mouse.move(box.x + 200, box.y + 60, { steps: 8 })
-  await page.waitForTimeout(250)
+  await frame(page)
   await page.fill('.panel textarea', '')
   await page.keyboard.press('Meta+Shift+L')
-  await page.waitForTimeout(250)
-  const kept = await page.inputValue('.panel textarea')
+  const input = () => page.inputValue('.panel textarea')
+  const kept = await until(input)
   ok('selection survives idle mousemove (⌘⇧L still grabs it)', kept.length > 0, JSON.stringify(kept.slice(0, 40)))
 
   await page.fill('.panel textarea', '')
   await drag(20)
   await page.keyboard.press('Meta+Shift+L')
-  await page.waitForTimeout(250)
-  const val = await page.inputValue('.panel textarea')
+  const val = await until(input)
   ok('⌘⇧L grabs that selection', val.length > 0, JSON.stringify(val.slice(0, 40)))
 
-  // grabbing consumes the selection: the strip must not linger in the terminal
+  await frame(page)
   const leftover = await page.evaluate(() =>
     document.querySelectorAll('.term .xterm-selection div').length)
   ok('highlight clears after ⌘⇧L', leftover === 0, `${leftover} divs`)
@@ -48,22 +44,21 @@ await suite('drag-select', async ({ page, ok }) => {
   })
   ok('cursor stays an I-beam', cursor === 'text', cursor)
 
-  // the terminal must still be usable: keystrokes reach the shell
   await page.locator('.term').click()
+  await page.keyboard.press('Control+C')
   await page.keyboard.type('echo STILL_TYPING_OK\n')
-  await page.waitForTimeout(700)
-  ok('typing still reaches the shell', (await page.locator('.term').innerText()).includes('STILL_TYPING_OK'))
+  ok('typing still reaches the shell', await shows('\nSTILL_TYPING_OK'))
 
   await page.keyboard.press('Control+C')
-  await page.keyboard.type("printf '\\033[?1003h\\033[?1006h'; cat -v\n")
-  await page.waitForTimeout(600)
+  await page.keyboard.type(`printf '\\033[?1003h\\033[?1006h'; echo CAT_""ON; cat -v\n`)
+  await shows('\nCAT_ON')
+  await frame(page)
   await page.mouse.move(box.x + 120, box.y + 80, { steps: 4 })
-  await page.waitForTimeout(300)
-  const hover = await page.locator('.term').innerText()
-  ok('idle mouse movement reaches the app (hover)', /\[<35;\d+;\d+M/.test(hover), (hover.match(/\[<35;\d+;\d+M/) || ['no motion report'])[0])
+  const hover = await until(async () => (await termText(page)).match(/\[<35;\d+;\d+M/))
+  ok('idle mouse movement reaches the app (hover)', !!hover, (hover || ['no motion report'])[0])
   await page.mouse.click(box.x + 40, box.y + 40)
-  await page.waitForTimeout(400)
-  const term = await page.locator('.term').innerText()
-  ok('plain click reaches the app', /\[<0;\d+;\d+M/.test(term), (term.match(/\[<0;\d+;\d+M/) || ['no press report'])[0])
+  const press = await until(async () => (await termText(page)).match(/\[<0;\d+;\d+M/))
+  ok('plain click reaches the app', !!press, (press || ['no press report'])[0])
   await page.keyboard.press('Control+C')
+  await page.keyboard.type(`printf '\\033[?1003l\\033[?1006l'\n`)
 })

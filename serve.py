@@ -1,37 +1,48 @@
-from fastapi import FastAPI, Response            # the framework
-from fastapi.staticfiles import StaticFiles      # its static-file server (your old do_GET)
-from pydantic import BaseModel                   # JSON-contract library FastAPI uses
-from typing import Any                           # the prompts doc is opaque to this file
-import subprocess                                # unchanged — the tmux door
-import os                                        # to read the env vars claude-s passes down
-import sys                                       # for the single-write log line in /send
-import json                                      # the prompts store is one JSON file
+from fastapi import APIRouter, FastAPI, HTTPException, Response, WebSocket
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from pydantic import BaseModel
+from typing import Any
+from urllib.parse import urlsplit
+from websockets.asyncio.client import unix_connect
+from websockets.exceptions import ConnectionClosed
+import asyncio
+import subprocess
+import tempfile
+import os
+import sys
+import json
 
-app = FastAPI()                                  # THE app — what "serve:app" points at
+app = FastAPI()
+api = APIRouter(prefix="/api")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SESSION = os.environ.get("SB_SESSION", "sb")     # which tmux session /send targets
-TTYD_PORT = os.environ.get("SB_TTYD_PORT", "7681")  # which port the terminal should talk to
+SESSION = os.environ.get("SB_SESSION", "sb")
+TTYD_SOCK = os.environ.get("SB_TTYD_SOCK") or os.path.join(tempfile.gettempdir(), "stepboard-1.sock")
 
-# The prompts store. One file, shared by every session and every port — which is
-# the whole point of moving it off localStorage, where each origin
-# (localhost:5173, localhost:5174, 127.0.0.1:8001 …) had its own private copy.
-# SB_PROMPTS overrides the path; the tests MUST set it, or a test run would
-# rewrite your real prompts.
 PROMPTS = os.environ.get("SB_PROMPTS") or os.path.join(HERE, "prompts.json")
 PROMPTS_IS_DEFAULT = not os.environ.get("SB_PROMPTS")
 
-@app.get("/config")                              # the browser asks: "which ttyd am I paired with?"
+LOCAL = {"localhost", "127.0.0.1", "::1"}
+
+
+def local_origin(origin):
+    return origin is None or urlsplit(origin).hostname in LOCAL
+
+
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1"])
+
+
+@api.get("/config")
 def config():
     # `prompts_default` is a safety interlock, not decoration: the test harness
     # wipes the store before every suite, and refuses to run against the real
     # one. Without this it could only find out by guessing at the path.
-    return {"ttyd_port": TTYD_PORT, "session": SESSION,
+    return {"session": SESSION, "ttyd_sock": TTYD_SOCK,
             "prompts": PROMPTS, "prompts_default": PROMPTS_IS_DEFAULT}
 
-# The panel owns the SHAPE of a prompts doc; this file only stores it. That is
-# deliberate — the seed list still lives in ui/src/hooks/usePrompts.js, so
-# adding a prompt to the app stays a one-file change.
+
 def read_prompts():
     """→ (rev, doc). doc is None when there is no usable file yet, which the
     panel reads as 'never initialised' and answers by seeding. An empty list is
@@ -41,18 +52,21 @@ def read_prompts():
             saved = json.load(f)
         return int(saved.get("rev", 0)), saved.get("doc")
     except (OSError, ValueError, AttributeError):
-        return 0, None                           # absent, unreadable, or garbage
+        return 0, None
 
-@app.get("/prompts")
+
+@api.get("/prompts")
 def get_prompts():
     rev, doc = read_prompts()
     return {"rev": rev, "doc": doc}
 
-class Prompts(BaseModel):
-    rev: int                                     # the rev the panel believes it is editing
-    doc: Any                                     # opaque: {list, seeded}, checked by the panel
 
-@app.put("/prompts")
+class Prompts(BaseModel):
+    rev: int
+    doc: Any
+
+
+@api.put("/prompts")
 def put_prompts(body: Prompts, response: Response):
     """Last-write-wins would silently eat a prompt whenever two sessions are
     open — which is now the expected case, since they share one file. So a PUT
@@ -63,46 +77,111 @@ def put_prompts(body: Prompts, response: Response):
         response.status_code = 409
         return {"rev": rev, "doc": doc}
     nxt = rev + 1
-    # tmp + rename: a crash mid-write leaves the old file intact instead of a
-    # half-written one. os.replace is atomic within a filesystem.
     tmp = PROMPTS + ".tmp"
     with open(tmp, "w") as f:
         json.dump({"rev": nxt, "doc": body.doc}, f, indent=2)
     os.replace(tmp, PROMPTS)
     return {"rev": nxt}
 
-@app.delete("/prompts")
+
+@api.delete("/prompts")
 def delete_prompts():
     """Reset: drop the file and the next load seeds from BUILTIN again."""
     try:
         os.remove(PROMPTS)
     except OSError:
-        pass                                     # already gone is the state we wanted
+        pass
     return {"ok": True}
 
-@app.middleware("http")                          # dev panel: never serve a stale page
-async def no_cache(request, call_next):          # (Safari loves to keep old JS around)
+
+class Send(BaseModel):
+    text: str
+
+
+PIECE = 400
+FOCUS_IN = "\x1b[I"
+
+
+def typed(text):
+    if len(text) <= PIECE:
+        return text[:-1] + "\\;" if text.endswith(";") else text
+    parts = [text[i:i + PIECE] for i in range(0, len(text), PIECE)]
+    return FOCUS_IN.join(parts) + FOCUS_IN
+
+
+def tmux_keys(*keys):
+    try:
+        r = subprocess.run(["tmux", "send-keys", "-t", SESSION, *keys],
+                           capture_output=True, text=True, timeout=5)
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "tmux did not answer")
+    if r.returncode:
+        raise HTTPException(503, r.stderr.strip() or "tmux send-keys failed")
+
+
+@api.post("/send")
+def send(body: Send):
+    sys.stdout.write(f"POST /send  {body.text!r}\n")
+    tmux_keys("-l", "--", typed(body.text))
+    tmux_keys("Enter")
+    return {"ok": True}
+
+
+@api.websocket("/ws")
+async def terminal(ws: WebSocket):
+    if not local_origin(ws.headers.get("origin")):
+        await ws.close(code=1008)
+        return
+    await ws.accept(subprotocol="tty")
+    try:
+        upstream = await unix_connect(TTYD_SOCK, "ws://localhost/ws", subprotocols=["tty"],
+                                      compression=None, max_size=None, ping_interval=None)
+    except OSError:
+        await ws.close(code=4001, reason="ttyd unreachable")
+        return
+
+    async def browser_to_ttyd():
+        while True:
+            m = await ws.receive()
+            if m["type"] == "websocket.disconnect":
+                return
+            await upstream.send(m["bytes"] if m.get("bytes") is not None else m["text"])
+
+    async def ttyd_to_browser():
+        try:
+            async for m in upstream:
+                await (ws.send_bytes(m) if isinstance(m, bytes) else ws.send_text(m))
+        except ConnectionClosed:
+            pass
+
+    up = asyncio.create_task(browser_to_ttyd())
+    down = asyncio.create_task(ttyd_to_browser())
+    done, pending = await asyncio.wait({up, down}, return_when=asyncio.FIRST_COMPLETED)
+    for t in pending:
+        t.cancel()
+    await upstream.close()
+    if down in done:
+        try:
+            await ws.close(code=1000 if upstream.close_code == 1000 else 4000)
+        except RuntimeError:
+            pass
+
+
+@app.middleware("http")
+async def guard_and_cache(request, call_next):
+    if request.method not in ("GET", "HEAD") and not local_origin(request.headers.get("origin")):
+        return JSONResponse({"detail": "cross-site request refused"}, status_code=403)
     resp = await call_next(request)
-    resp.headers["Cache-Control"] = "no-store"
+    hashed = request.url.path.startswith("/assets/") and resp.status_code in (200, 304)
+    resp.headers["Cache-Control"] = "max-age=31536000, immutable" if hashed else "no-store"
     return resp
 
-class Send(BaseModel):                           # declares what /send's body must be:
-    text: str                                    #   {"text": "some string"}
 
-@app.post("/send")                               # route: POST /send → the function below
-def send(body: Send):                            # body arrives already parsed + validated
-    # one write, not print(): under claude-s stdout is an unbuffered pipe shared
-    # with uvicorn's access log, and print()'s separate '\n' write lets a
-    # concurrent log record splice into the middle of this line
-    sys.stdout.write(f"POST /send  {body.text!r}\n")
-    subprocess.run(["tmux", "send-keys", "-t", SESSION, "-l", "--", body.text])
-    subprocess.run(["tmux", "send-keys", "-t", SESSION, "Enter"])
-    return {"ok": True}                          # auto-JSON, status 200
+app.include_router(api)
 
-# must stay LAST: "/" catches everything, so /config, /send and /prompts have to
-# be registered first.
-# Absolute path, so the panel is found whichever directory uvicorn was started from.
+# must stay LAST: "/" catches everything, so the /api router has to be
+# included first.
 UI = os.path.join(HERE, "ui", "dist")
-if not os.path.isdir(UI):                        # a missing build is a setup mistake, not a 404 —
+if not os.path.isdir(UI):
     raise SystemExit(f"no panel build at {UI}\nrun: cd ui && npm install && npm run build")
 app.mount("/", StaticFiles(directory=UI, html=True))
