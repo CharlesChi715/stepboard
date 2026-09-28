@@ -3,7 +3,7 @@ import { useTtyd, isGrabKey } from './hooks/useTtyd.js'
 import { useHistory } from './hooks/useHistory.js'
 import { usePrompts } from './hooks/usePrompts.js'
 import { compose, send, tail } from './lib/compose.js'
-import { NEWS_ID, NEWS_KEY, KEYS } from './lib/news.js'
+import { NEWS_ID, NEWS_KEY } from './lib/news.js'
 import { BTN, BTN_ACTION, BTN_ACTION_ON, BTN_SEND, HINT, TERM } from './lib/ui.js'
 import MessageBar from './components/MessageBar.jsx'
 import Prompts from './components/Prompts.jsx'
@@ -11,6 +11,7 @@ import History from './components/History.jsx'
 import Badge from './components/Badge.jsx'
 import LinkPill from './components/LinkPill.jsx'
 import WhatsNew from './components/WhatsNew.jsx'
+import Shortcuts from './components/Shortcuts.jsx'
 import { Length, Format, Edits } from './components/Constraints.jsx'
 
 const KEY_REPORT = new URLSearchParams(location.search).has('keys')
@@ -190,11 +191,7 @@ export default function App() {
         <div className="mt-auto flex flex-col gap-2">
           <button className={`summarize ${BTN}`} onMouseDown={keep}
                   onClick={() => sendComposed('Summarize this session.')}>summarize</button>
-          <p className={`legend flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 ${HINT}`}>
-            {KEYS.map(([k, what]) => <span key={k}><kbd className="text-ink">{k}</kbd> {what}</span>)}
-            <button className="whats-new cursor-pointer text-armed underline-offset-2 hover:underline"
-                    onClick={() => setNews(true)}>what's new</button>
-          </p>
+          <Shortcuts onNews={() => setNews(true)} />
           <Badge note={note} />
         </div>
       </aside>

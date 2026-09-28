@@ -516,3 +516,10 @@
 - Terminal: close-code reconnect policy + pill, unicode11, Shift+Enter newline, tab title + bell, selection colour, first-fit + debounced refit, padding fix.
 - Panel: compose-first layout, field-sizing composer, clamp width, focus outlines, muted contrast, aria-pressed chips, keep-caret clicks, ⌥1–9, prompt reorder, history draft fix, status line, what's-new popup.
 - Tests: deterministic (no sleeps), lint + build pretest, new security/resilience/typed suites, WebKit run; 128/128 on Chromium and WebKit, ~10 s. WebKit caught a real Safari Escape bug (fixed).
+
+## 2026-09-29 — launcher rename, clean stop, shortcuts card
+
+- bin/claude-s → bin/claude-stepboard; added `ls` and `stop [N|all] [--keep]` (run file with launcher + child PIDs, exact tmux names, Safari tab close); Ctrl-C keeps claude in tmux.
+- Fixed dev mode: uvicorn crashed on an absolute --reload-exclude for a missing dir (Python 3.14 glob); excludes now only for dirs that exist.
+- SHORTCUTS card at the bottom of the panel (lib/keys.js), foldable; what's new bumped to 2026-09-29.2.
+- Incidents: my cleanup killed the default tmux server (argv looked like a scratch `tmux new`), and a bare `stop` test closed the live sb2. Bare stop now requires exactly one live board.

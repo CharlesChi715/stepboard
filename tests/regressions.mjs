@@ -59,6 +59,17 @@ await suite('regressions', async ({ page, ok }) => {
   })
   ok('the last terminal row is not clipped', rows.row <= rows.term + 0.5, JSON.stringify(rows))
 
+  const card = page.locator('details.shortcuts')
+  ok('the shortcuts card is open by default', await card.evaluate(d => d.open))
+  ok('it lists every shortcut group', /anywhere.*composer.*terminal.*prompt editor/s.test(await card.innerText()))
+  ok('it includes ⌥1–9 and ⌘⇧L', /⌥1–9/.test(await card.innerText()) && /⌘⇧L/.test(await card.innerText()))
+  await card.locator('summary').click()
+  await until(() => page.evaluate(() => localStorage.getItem('sb-keys-open') === '0'))
+  await load(page, 'reload')
+  ok('folding it is remembered', !(await page.locator('details.shortcuts').evaluate(d => d.open)))
+  await page.locator('details.shortcuts summary').click()
+  await until(() => page.evaluate(() => localStorage.getItem('sb-keys-open') === '1'))
+
   await page.evaluate(k => { sessionStorage.setItem('sb-news-test', '1'); localStorage.removeItem(k) }, NEWS_KEY)
   await load(page, 'reload')
   ok("what's new opens once after an update", await until(() => page.locator('dialog.news[open]').isVisible()))

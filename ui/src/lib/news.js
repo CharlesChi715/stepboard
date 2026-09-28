@@ -1,4 +1,4 @@
-export const NEWS_ID = '2026-09-29'
+export const NEWS_ID = '2026-09-29.2'
 export const NEWS_KEY = 'sb-news-seen'
 
 export const KEYS = [
@@ -21,6 +21,7 @@ export const NEWS = [
   {
     title: 'Lighter',
     items: [
+      ['claude-stepboard stop closes a board cleanly: its servers, its Safari tab and its tmux session — nothing else. Add --keep to leave claude running; claude-stepboard ls shows what is up.', 'Run claude-stepboard ls.'],
       ['claude-stepboard now runs "use" mode: the built panel on :800N, no Vite, no reloader (~80 MB instead of ~480 MB).', 'Run claude-stepboard dev for the old hot-reload setup.'],
     ],
   },
@@ -52,6 +53,7 @@ export const NEWS = [
   {
     title: 'Panel',
     items: [
+      ['Every shortcut is listed in the SHORTCUTS card at the bottom of the panel. Click its title to fold it away.', null],
       ['Send lives in the composer, the composer grows with its text, and the panel widens on big screens.', null],
       ['⌥1–9 arm and disarm prompts; hover a chip to see its number.', 'Press ⌥1.'],
       ['Clicking a chip, Send or a history row keeps your caret in the composer.', null],

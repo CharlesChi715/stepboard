@@ -15,10 +15,11 @@ stepboard/
 │   └── src/
 │       ├── App.jsx     # state, composer, global keys (useEffectEvent), layout
 │       ├── styles.css  # Tailwind import + @theme palette, --width-panel
-│       ├── components/ # MessageBar · Constraints · Prompts · History · Badge · LinkPill · WhatsNew
+│       ├── components/ # MessageBar · Constraints · Prompts · History · Badge · LinkPill · WhatsNew · Shortcuts
 │       ├── hooks/      # useTtyd (xterm + ttyd protocol + reconnect) · useHistory · usePrompts
-│       └── lib/        # compose.js (raw/tail/send) · ui.js (class strings, FOCUS) · news.js
-├── bin/claude-s        # launcher: `claude-s` = use mode, `claude-s dev` = HMR
+│       └── lib/        # compose.js (raw/tail/send) · ui.js (class strings, FOCUS) · news.js · keys.js
+├── bin/claude-stepboard  # launcher: [use] · dev · ls · stop [N|all] [--keep]
+│                         #   (~/.local/bin/claude-stepboard symlinks here)
 ├── tests/              # proxy · typed.py · security · parity · regressions · drag-select · resilience
 ├── package.json        # Playwright + `npm test` (pretest = lint + build)
 ├── pyproject.toml      # fastapi, uvicorn, websockets, watchfiles (via uv)
@@ -32,6 +33,9 @@ stepboard/
   with `-s KILL` · uvicorn :800N · (dev) Vite :5172+N. Safari opens once `/api/config` answers.
 - `use` mode serves ui/dist from uvicorn (~80 MB, 0% idle CPU), rebuilding if ui/ is newer.
   `dev` = Vite HMR + `uvicorn --reload` on watchfiles, with absolute `--reload-exclude` paths.
+- Close: `claude-stepboard stop [N|all] [--keep]` acts only on `$TMPDIR/stepboard-N.run` (launcher +
+  child PIDs) and exact tmux `=sbN`; bare `stop` needs exactly one live board. Never pkill patterns
+  or the tmux server (the server's argv looks like `tmux new …`).
 - Security: no TCP ttyd; `/api/ws` refuses foreign Origin; TrustedHost refuses foreign Host;
   non-GET from a foreign Origin → 403. `tests/security.mjs` guards it.
 - Terminal: page connects to same-origin `/api/ws`. Close 1000 (or tmux `[exited]`) = claude
@@ -40,7 +44,8 @@ stepboard/
   as-is with a trailing `;` escaped; longer text in 400-char pieces joined by ESC[I (stays under
   Claude's 800-char paste threshold). Enter is always a SEPARATE tmux call.
 - Composer: `/cmd` and `!shell` go raw (no clauses/prompts); the tail line shows what gets appended.
-- Keys: ⌘J term · ⌘K composer · ⌘⇧L grab · ⌥1–9 prompts · ⇧⏎ newline (terminal too).
+- Keys: ⌘J term · ⌘K composer · ⌘⇧L grab · ⌥1–9 prompts · ⇧⏎ newline (terminal too); all listed in the
+  SHORTCUTS card (lib/keys.js is its single source), foldable, fold state per browser.
   Option-as-Meta is OFF on purpose: ⌥O would toggle Claude's fast mode (credits).
 - What's new: `lib/news.js`; bump `NEWS_ID` to show the popup once more. Tests pre-mark it seen.
 

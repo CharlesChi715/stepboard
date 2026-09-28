@@ -74,6 +74,7 @@ export const HINT = 'text-[11px] leading-snug text-muted'
 // job. Only `edits` draws one, because there it carries meaning (the mood).
 const FIELD = 'rounded-lg border bg-card px-3 pt-2 pb-3'   // the frame, minus its colour
 export const FIELDSET = `${FIELD} flex flex-col gap-2 border-transparent`
+export const FIELD_CARD = `${FIELD} border-transparent`
 // The prompt chips, which wrap into rows. A row INSIDE the prompts card now,
 // not the card itself: the card stacks an actions row above the chips, and the
 // two must not share a direction or a control ever reads as a prompt.

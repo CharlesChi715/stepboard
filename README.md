@@ -7,17 +7,28 @@ before the next is added. (The previous full version lives in git @ 2a92f3f.)
 ## Quick start
 
 ```sh
-cd ui && npm install && cd .. && uv sync   # first time only
-./bin/claude-s                             # use mode: terminal + panel + Safari, one command
-./bin/claude-s dev                         # dev mode: the same, plus hot reload
-                                           # run again → session 2, 3, … own ports each
+cd ui && npm install && cd .. && uv sync      # first time only
+claude-stepboard                              # use mode: terminal + panel + Safari, one command
+claude-stepboard dev                          # dev mode: the same, plus hot reload
+                                              # run again → session 2, 3, … own ports each
+claude-stepboard ls                           # what is running
+claude-stepboard stop [N|all] [--keep]        # close a board: servers, its Safari tab, tmux sbN
 ```
+
+Closing is scoped to what the launcher recorded in `$TMPDIR/stepboard-N.run`
+(its own PID and its children's PIDs) plus the exact tmux session `sbN` — never a
+name pattern, never the tmux server, never a claude outside `sbN`. `--keep` leaves
+claude running in tmux so the next launch re-attaches; Ctrl-C in the launcher
+window does the same. A bare `stop` only acts when exactly one board is running.
+The conversation is saved either way: `/resume` brings it back.
+
+(`claude-stepboard` is a symlink in `~/.local/bin` → `bin/claude-stepboard`.)
 
 Two modes:
 
 ```
 use  (default)  uvicorn serves the built ui/dist on :800N — no Node, no reloader, ~80 MB
-                claude-s rebuilds ui/dist first if anything in ui/ is newer than it
+                claude-stepboard rebuilds ui/dist first if anything in ui/ is newer than it
 dev             Vite on :5172+N (HMR) + uvicorn --reload (watchfiles) on :800N, ~480 MB
                 edit ui/src → the tab patches itself; edit serve.py → uvicorn restarts
 ```
@@ -52,7 +63,7 @@ Everything the page talks to lives under **`/api`** — `/api/config`, `/api/sen
 `/api/prompts` and the terminal socket `/api/ws` — so dev mode needs exactly one
 Vite proxy entry, and the page never learns a ttyd port.
 
-Each `claude-s` run adds an independent session — its own tmux, ttyd, and panel:
+Each `claude-stepboard` run adds an independent session — its own tmux, ttyd, and panel:
 
 | session | tmux | ttyd (unix socket)          | panel + API (uvicorn) | dev panel (vite) |
 |--------:|------|-----------------------------|-----------------------|------------------|
@@ -77,7 +88,8 @@ When claude exits, press ⏎ in the terminal (or click the pill) to start it aga
 
 `/commands` and `!shell` lines are sent exactly as typed; the line under the
 composer shows whatever else will be appended. `?keys` in the URL turns on a
-key-report diagnostic in the status line. "what's new" under the panel lists
+key-report diagnostic in the status line. The SHORTCUTS card at the bottom of
+the panel lists all of this (click its title to fold it), and its "what's new" link lists
 the latest changes.
 
 ## Files
@@ -89,7 +101,7 @@ the latest changes.
 - `ui/src/hooks/useTtyd.js` — xterm.js + ttyd's wire protocol + the reconnect policy
 - `ui/src/lib/compose.js` — message + constraints → the text Claude receives
 - `ui/src/lib/news.js` — the "what's new" popup's content; bump `NEWS_ID` to show it again
-- `bin/claude-s` — launcher: finds free slot N, starts ttyd + uvicorn (+ vite in dev), opens panel
+- `bin/claude-stepboard` — launcher: finds free slot N, starts ttyd + uvicorn (+ vite in dev), opens panel
 - `tests/` — headless browser checks, `npm test` (see `tests/README.md`)
 - `pyproject.toml` + `uv.lock` — Python deps (FastAPI, uvicorn, websockets, watchfiles) for `uv run`
 - `package.json` — test deps (Playwright); the panel's own deps live in `ui/`
