@@ -6,19 +6,28 @@
 .Nd the Claude Code CLI in a browser tab, with a panel of prompt buttons beside it
 .Sh SYNOPSIS
 .Nm
-.Op Cm use
+.Op Cm start
+.Op Fl -dev
+.Op Fl y | Fl -yes
+.Op Fl -no-input
+.Op Fl -no-open
 .Nm
-.Cm dev
-.Nm
-.Cm ls
+.Cm list
+.Op Fl -json
 .Nm
 .Cm stop
-.Op Ar N | Cm all
+.Op Ar N ...
+.Op Fl a | Fl -all
 .Op Fl -with-claude
 .Nm
 .Cm man
 .Nm
-.Fl h | Fl -help | Cm help
+.Cm help
+.Op Ar command
+.Nm
+.Fl h | Fl -help
+.Nm
+.Fl -version
 .Sh DESCRIPTION
 .Nm
 starts a StepBoard session: the real
@@ -38,6 +47,11 @@ When a session is already running,
 asks
 .Sq create session N? [Y/n] ;
 Enter means yes.
+It only asks when standard input is a terminal: otherwise, or with
+.Fl -no-input ,
+it exits 1 instead, and
+.Fl y
+answers yes up front.
 .Pp
 claude runs as a background session in the Claude daemon
 .Pq Li claude --bg ,
@@ -57,53 +71,99 @@ or
 from any terminal, picks it up where it was, draft included.
 .Sh COMMANDS
 .Bl -tag -width Ds
-.It Cm use
-The default.
+.It Cm start Oo Fl -dev Oc Oo Fl y Oc Oo Fl -no-input Oc Oo Fl -no-open Oc
+The default command.
+Starts board
+.Ar N
+in the next free slot and opens it in Safari.
 Serves the built panel
 .Pq Pa ui/dist
 from the API server on port 8000+N: no Node, no reloader, about 80 MB per
-session.
-Rebuilds
+session; rebuilds
 .Pa ui/dist
 first if anything under
 .Pa ui/
 is newer than it.
-.It Cm dev
-For working on StepBoard itself.
-Vite serves the panel on port 5172+N with hot reload, and the API server
-restarts when
+.Bl -tag -width Ds
+.It Fl -dev
+For working on StepBoard itself: Vite serves the panel on port 5172+N with hot
+reload, and the API server restarts when
 .Pa serve.py
 changes.
 About 480 MB per session.
-.It Cm ls
-Lists sessions: the board
-.Pq mode and URL
-and the slot's claude: its id and status in the Claude daemon.
-.It Cm stop Oo Ar N | Cm all Oc Op Fl -with-claude
-Closes board
-.Ar N :
-stops its servers, closes its Safari tab and ends the tmux viewer
-.Li sb Ns Ar N .
-Its claude keeps running in the Claude daemon.
+.It Fl y , Fl -yes
+Don't ask; use the next free slot.
+.It Fl -no-input
+Never prompt; exit 1 where a question would be asked.
+.It Fl -no-open
+Don't open Safari.
+.El
+.It Cm list Op Fl -json
+Lists slots: the board
+.Pq mode and URL ,
+the slot's claude
+.Pq id and status in the Claude daemon ,
+and leftovers \(em StepBoard API servers still holding port 8000+N with no
+board, e.g. from a crash or an older launcher.
+.Cm ls
+is an alias.
 With
-.Fl -with-claude ,
-that claude is stopped too
+.Fl -json ,
+prints one JSON array on standard output.
+.It Cm stop Oo Ar N ... Oc Oo Fl a Oc Op Fl -with-claude
+Closes the given boards: stops their servers, closes their Safari tabs, ends
+the tmux viewers
+.Li sb Ns Ar N ,
+and removes any leftover API server on port 8000+N.
+Their claude sessions keep running in the Claude daemon.
+.Bl -tag -width Ds
+.It Fl a , Fl -all
+Every slot.
+.It Fl -with-claude
+Also stop those boards' claude sessions
 .Pq Li claude stop Ar id ;
-its chat is kept.
-.Cm all
-closes every board.
-Without
-.Ar N ,
-it acts only when exactly one board is running.
+their chats are kept.
+.El
 .Pp
+Without
+.Ar N
+or
+.Fl a ,
+it acts only when exactly one board is running.
 It only ever touches what the launcher recorded in its run file, the exact
-tmux session name and the slot's own claude id \(em never a name pattern,
-never the tmux server, never any other claude session.
+tmux session name, the slot's own claude id, and a
+.Li serve:app
+process from a StepBoard checkout listening on exactly that slot's port \(em
+never a name pattern, never the tmux server, never any other claude session.
 .It Cm man
 Shows this page.
-.It Fl h , Fl -help , Cm help
-Prints a one-screen summary.
+.It Cm help Op Ar command
+Help for
+.Ar command ,
+or the overview.
+Every command also takes
+.Fl h
+and
+.Fl -help .
+.It Fl -version
+Prints the version and the source revision.
 .El
+.Pp
+Every command also takes
+.Fl -no-color .
+The older forms
+.Cm use ,
+.Cm dev
+and
+.Cm stop all
+still work and print their new spelling:
+.Cm start ,
+.Cm start Fl -dev
+and
+.Cm stop Fl -all .
+A mistyped command gets a
+.Dq Did you mean
+suggestion.
 .Sh SESSIONS
 .Bl -column "session" "sbN" "$TMPDIR/stepboard-N.sock" "8000+N" "5172+N"
 .It Em session Ta Em tmux Ta Em terminal socket Ta Em panel Ta Em dev panel
@@ -152,6 +212,13 @@ Anything else gets the armed prompts and the Length/Format/Edits clauses
 appended; the line under the composer shows what.
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
+.It Ev NO_COLOR
+Set to anything to turn colour off
+.Pq also Fl -no-color ;
+colour is also off when standard error is not a terminal.
+.It Ev XDG_STATE_HOME
+Where the per-slot claude ids live
+.Pq default Pa ~/.local/state .
 .It Ev TMPDIR
 Where the run files and sockets live
 .Pq default Pa /tmp .
@@ -191,28 +258,38 @@ Where claude keeps the chat, which is what
 reads.
 .El
 .Sh EXIT STATUS
-.Ex -std
-Answering no to
-.Sq create session N?
-also exits 0.
-A wrong command or an ambiguous bare
-.Cm stop
-exits 2.
+.Bl -tag -width Ds -compact
+.It 0
+Success, including answering no to
+.Sq create session N? .
+.It 1
+Something failed: a board could not start, a slot to stop was not found, or a
+question was needed under
+.Fl -no-input .
+.It 2
+Usage error: unknown command or option, a bad session number, or an ambiguous
+bare
+.Cm stop .
+.El
 .Sh EXAMPLES
 Start the default board and open it in Safari:
 .Dl claude-stepboard
 .Pp
-Hack on the panel with hot reload:
-.Dl claude-stepboard dev
+Hack on the panel with hot reload, in a second slot, without being asked:
+.Dl claude-stepboard start --dev --yes
 .Pp
-Restart a board to pick up new code; claude keeps running:
+Restart board 2 to pick up new code; its claude keeps running:
 .Dl claude-stepboard stop 2 && claude-stepboard
+.Pp
+See what is running, or feed it to a script:
+.Dl claude-stepboard list
+.Dl claude-stepboard list --json | jq '.[].claude'
+.Pp
+Close every board and stop their claudes:
+.Dl claude-stepboard stop --all --with-claude
 .Pp
 Open board 2's claude in a plain terminal, without the board:
 .Dl claude attach $(cat ~/.local/state/stepboard/claude-2.id)
-.Pp
-Close every board and stop their claudes:
-.Dl claude-stepboard stop all --with-claude
 .Sh SEE ALSO
 .Xr claude 1 ,
 .Xr tmux 1 ,

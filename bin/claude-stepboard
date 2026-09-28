@@ -1,21 +1,51 @@
 #!/bin/zsh
-# claude-stepboard — launch or close a StepBoard stack: ttyd/tmux terminal + FastAPI panel + browser
-#   claude-stepboard [use]                  use mode: the built panel served by uvicorn on :800N
-#   claude-stepboard dev                    dev mode: Vite HMR on :5172+N, uvicorn --reload on :800N
-#   claude-stepboard ls                     what is running
-#   claude-stepboard stop [N|all] [--with-claude]
-#                                   close session N: servers, Safari tab, tmux viewer sbN;
-#                                   claude keeps running in the Claude daemon unless --with-claude
-# claude runs as a daemon background session (`claude --bg`); tmux sbN only runs `claude attach`.
+# claude-stepboard — the Claude Code CLI in a browser tab, with a prompt panel beside it.
+# Commands: start (default) · list (ls) · stop · man · help · --version.  See --help or man.
+# claude runs as a Claude-daemon background session per slot; tmux sbN only runs `claude attach`.
 cd "${0:A:h}/.." || exit 1    # repo root — :A resolves symlinks, so a PATH symlink works
 
+PROG=claude-stepboard
+VERSION=0.2.0
+COMMANDS=(start list stop man help)
+MAX_SLOTS=20
+
 RUN="${TMPDIR:-/tmp}"; RUN="${RUN%/}"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/stepboard"
 runfile() { print "$RUN/stepboard-$1.run" }
 sockfile() { print "$RUN/stepboard-$1.sock" }
+idfile() { print "$STATE/claude-$1.id" }
 alive() { kill -0 $1 2>/dev/null && [[ $(ps -o command= -p $1) == *claude-s* ]] }
 
-STATE="${XDG_STATE_HOME:-$HOME/.local/state}/stepboard"
-idfile() { print "$STATE/claude-$1.id" }
+COLOR=1
+color_off() { COLOR=0 }
+[[ -n $NO_COLOR || ! -t 2 ]] && color_off
+
+note() { print -u2 -r -- "$*" }
+warn() { note "$PROG: $*" }
+die() { warn "$1"; [[ -n $2 ]] && note "$2"; exit ${3:-2} }
+
+# ── slots ────────────────────────────────────────────────────────────────────
+# A slot N is one board: tmux sbN · ttyd socket · API on :800N · claude id in STATE.
+# Everything below asks the same question, so the launcher, list and stop agree.
+
+port_pids() { lsof -t -nP -iTCP:$((8000+$1)) -sTCP:LISTEN 2>/dev/null }
+board_pid() {  # live launcher PID for slot N, if any
+  local f=$(runfile $1) LAUNCHER
+  [[ -e $f ]] || return 1
+  source $f
+  alive $LAUNCHER && print $LAUNCHER
+}
+leftover_pids() {  # StepBoard API servers holding :800N with no live board (old launcher, crash)
+  board_pid $1 >/dev/null && return 1
+  local p args cwd found=()
+  for p in ${(f)"$(port_pids $1)"}; do
+    args=$(ps -o args= -p $p 2>/dev/null)
+    cwd=$(lsof -a -p $p -d cwd -Fn 2>/dev/null | sed -n 's/^n//p')
+    [[ $args == *serve:app* && $args == *"--port $((8000+$1))"* && -f $cwd/serve.py && -d $cwd/ui ]] &&
+      found+=$p
+  done
+  (( ${#found} )) && print -l $found
+}
 claude_id() { local f=$(idfile $1); [[ -r $f ]] && print -r -- "$(<$f)" }
 agents() { AGENTS=$(claude agents --json --all 2>/dev/null) }
 bg_status() {  # bg_status <id> → the daemon's status for it, or "gone"; needs $AGENTS
@@ -24,45 +54,174 @@ i = sys.argv[1]
 s = [a for a in json.load(sys.stdin) if a.get("id") == i]
 print(s[0].get("status") or "stopped" if s else "gone")' $1
 }
-
-ensure_claude() {  # ensure_claude <N> → sets CLAUDE_ID, starting a background session if needed
-  local id=$(claude_id $1)
-  agents
-  if [[ -z $id || $(bg_status $id) == gone ]]; then
-    id=$(cd ~ && claude --bg --name "StepBoard $1" 2>&1 | sed $'s/\x1b\\[[0-9;]*m//g' |
-         sed -n 's/.*backgrounded · \([0-9a-f]*\).*/\1/p')
-    [[ -n $id ]] || { print -u2 "claude-stepboard: could not start a background claude"; return 1 }
-    mkdir -p $STATE && print -r -- $id > $(idfile $1)
-  fi
-  CLAUDE_ID=$id
-}
-
-boards() {
+known_slots() {
   local f n
-  for f in $RUN/stepboard-*.run(N); do n=${${f:t:r}#stepboard-}; print $n; done
+  for f in $RUN/stepboard-*.run(N); do print ${${f:t:r}#stepboard-}; done
+  for f in $STATE/claude-*.id(N); do print ${${f:t:r}#claude-}; done
   for n in ${(f)"$(tmux ls -F '#S' 2>/dev/null)"}; do [[ $n == sb<-> ]] && print ${n#sb}; done
+  for n in {1..$MAX_SLOTS}; do [[ -n $(port_pids $n) ]] && print $n; done
 }
 
-list() {
-  local n LAUNCHER MODE URLS any=0 f id
-  agents
-  local slots=(${(nu)$(boards)})
-  for f in $STATE/claude-*.id(N); do slots+=${${f:t:r}#claude-}; done
-  for n in ${(nu)slots}; do
-    any=1
-    local board='no board' claude='—'
-    if [[ -e $(runfile $n) ]]; then
-      source $(runfile $n)
-      alive $LAUNCHER && board="$MODE  ${URLS[1]}" || board='stale run file'
-    fi
-    id=$(claude_id $n)
-    if [[ -n $id ]]; then claude="$id ($(bg_status $id), daemon)"
-    elif tmux has -t "=sb$n" 2>/dev/null; then claude="inside tmux sb$n"
-    fi
-    printf '  session %-3s %-34s claude: %s\n' $n $board $claude
-  done
-  (( any )) || print '  no StepBoard sessions'
+describe() {  # describe <N> → sets BOARD, CLAUDE, TMUX_ON, LEFT for slot N (needs $AGENTS)
+  local n=$1 f=$(runfile $1) LAUNCHER MODE URLS id
+  BOARD= CLAUDE= TMUX_ON=0 LEFT=
+  if [[ -e $f ]]; then
+    source $f
+    alive $LAUNCHER && BOARD="$MODE ${URLS[1]}" || BOARD='stale run file'
+  fi
+  id=$(claude_id $n)
+  [[ -n $id ]] && CLAUDE="$id $(bg_status $id)"
+  tmux has -t "=sb$n" 2>/dev/null && TMUX_ON=1
+  LEFT=${(j: :)${(f)"$(leftover_pids $n)"}}
 }
+
+# ── help ─────────────────────────────────────────────────────────────────────
+
+help_main() {
+  cat <<EOF
+$PROG — the Claude Code CLI in a browser tab, with a prompt panel beside it
+
+Examples:
+  $PROG                     start a board and open it in Safari
+  $PROG list                what is running
+  $PROG stop 2              close board 2 (its claude keeps running)
+
+Usage:
+  $PROG [start] [--dev] [-y] [--no-open]
+  $PROG list [--json]                        (alias: ls)
+  $PROG stop [N...] [-a|--all] [--with-claude]
+  $PROG man
+  $PROG help [COMMAND]  ·  $PROG -h | --help  ·  $PROG --version
+
+Commands:
+  start   start board N in the next free slot (the default command)
+  list    list boards, their claude sessions and leftovers
+  stop    close boards; claude keeps running in the Claude daemon
+  man     the full manual
+  help    help for a command
+
+Each board's claude is a background session in the Claude daemon, so closing a
+board never stops it; the next start of that slot picks it up again.
+In the panel: ⌘J terminal · ⌘K composer · ⌘⇧L grab · ⌥1–9 prompts · ⌃⇧Q close
+
+Run '$PROG help <command>' or '$PROG man' for more.
+EOF
+}
+
+help_start() {
+  cat <<EOF
+Usage: $PROG [start] [options]
+
+Start a board in the next free slot N: claude (a Claude-daemon background
+session) in tmux sbN, ttyd on a private socket, the API on :800N, and Safari.
+When a lower slot is taken, asks "create session N? [Y/n]" — Enter means yes.
+
+Options:
+      --dev        serve the panel from Vite on :5172+N with hot reload
+  -y, --yes        don't ask; use the next free slot
+      --no-input   never prompt; fail instead of asking
+      --no-open    don't open Safari
+      --no-color   plain output (also: NO_COLOR=1)
+  -h, --help       this help
+
+Ctrl-C closes the board; claude keeps running.
+EOF
+}
+
+help_list() {
+  cat <<EOF
+Usage: $PROG list [options]        (alias: ls)
+
+List slots: the board (mode, URL), its claude session in the Claude daemon,
+and leftovers — StepBoard API servers still holding :800N with no board.
+
+Options:
+      --json       one JSON array on stdout, for scripts
+  -h, --help       this help
+EOF
+}
+
+help_stop() {
+  cat <<EOF
+Usage: $PROG stop [N...] [options]
+
+Close boards: servers, Safari tab, tmux viewer sbN, and any leftover StepBoard
+API server on :800N. claude keeps running in the Claude daemon.
+Without N, acts only when exactly one board is running.
+
+Options:
+  -a, --all          every slot
+      --with-claude  also stop those boards' claude sessions (chats are kept)
+  -h, --help         this help
+
+Examples:
+  $PROG stop 2
+  $PROG stop --all --with-claude
+EOF
+}
+
+help_man() { print "Usage: $PROG man\n\nShow the manual (man/claude-stepboard.1)." }
+help_help() { print "Usage: $PROG help [COMMAND]\n\nShow help for COMMAND, or the overview." }
+
+suggest() {  # suggest <word> → closest command, if any
+  python3 -c 'import difflib, sys
+m = difflib.get_close_matches(sys.argv[1], sys.argv[2:], n=1, cutoff=0.5)
+print(m[0] if m else "")' $1 $COMMANDS ls
+}
+
+unknown_command() {
+  local s=$(suggest $1)
+  warn "'$1' is not a command."
+  [[ -n $s ]] && note "Did you mean '$PROG $s'?"
+  note "Run '$PROG --help' for usage."
+  exit 2
+}
+
+# ── list ─────────────────────────────────────────────────────────────────────
+
+cmd_list() {
+  local -a help json nocolor
+  zparseopts -D -E -F -- h=help -help=help -json=json -no-color=nocolor 2>/dev/null ||
+    die "unknown option" "Run '$PROG list --help' for usage."
+  (( ${#help} )) && { help_list; exit 0 }
+  (( ${#nocolor} )) && color_off
+  (( $# )) && [[ $* != -- ]] && die "list takes no arguments" "Run '$PROG list --help' for usage."
+  agents
+  local n rows=()
+  for n in ${(nu)$(known_slots)}; do
+    describe $n
+    rows+=("$n"$'\t'"$BOARD"$'\t'"$CLAUDE"$'\t'"$TMUX_ON"$'\t'"$LEFT")
+  done
+  if (( ${#json} )); then
+    print -rl -- $rows | python3 -c 'import json, sys
+out = []
+for line in sys.stdin.read().splitlines():
+    n, board, claude, tmux, left = (line.split("\t") + [""] * 5)[:5]
+    mode, _, url = board.partition(" ")
+    cid, _, status = claude.partition(" ")
+    out.append({"session": int(n),
+                "board": {"mode": mode, "url": url} if url else None,
+                "claude": {"id": cid, "status": status} if cid else None,
+                "tmux": tmux == "1",
+                "leftover_pids": [int(p) for p in left.split()]})
+print(json.dumps(out, indent=2))'
+    return
+  fi
+  (( ${#rows} )) || { print '  no StepBoard sessions'; return }
+  local r fields board claude
+  for r in $rows; do
+    fields=("${(@ps:\t:)r}")
+    board=${fields[2]:-no board}
+    claude=${fields[3]:+${fields[3]%% *} (${fields[3]#* }, daemon)}
+    [[ -z $claude && ${fields[4]} == 1 ]] && claude="inside tmux sb${fields[1]}"
+    printf '  session %-3s %-30s claude: %s\n' ${fields[1]} $board ${claude:-—}
+    [[ -n ${fields[5]} ]] &&
+      printf '              leftover: :%s held by pid %s — %s stop %s removes it\n' \
+        $((8000+${fields[1]})) ${fields[5]} $PROG ${fields[1]}
+  done
+}
+
+# ── stop ─────────────────────────────────────────────────────────────────────
 
 close_tabs() {
   pgrep -xq Safari || return 0
@@ -74,9 +233,10 @@ close_tabs() {
 }
 
 stop_one() {  # stop_one <N> <with_claude>
-  local n=$1 end=$2 f=$(runfile $1) LAUNCHER MODE URLS KIDS p id=$(claude_id $1)
-  if [[ ! -e $f ]] && ! tmux has -t "=sb$n" 2>/dev/null && [[ -z $id ]]; then
-    print "  no session $n"; return
+  local n=$1 end=$2 f=$(runfile $1) LAUNCHER MODE URLS KIDS p id=$(claude_id $1) left
+  left=(${(f)"$(leftover_pids $n)"})
+  if [[ ! -e $f ]] && ! tmux has -t "=sb$n" 2>/dev/null && [[ -z $id && ${#left} -eq 0 ]]; then
+    note "  no session $n"; return 1
   fi
   if [[ -e $f ]]; then
     source $f
@@ -90,170 +250,222 @@ stop_one() {  # stop_one <N> <with_claude>
     fi
     close_tabs $URLS
   fi
+  if (( ${#left} )); then
+    kill -TERM $left 2>/dev/null
+    for _ in {1..40}; do kill -0 $left 2>/dev/null || break; sleep 0.05; done
+    kill -KILL $left 2>/dev/null
+    rm -f $(sockfile $n)
+    close_tabs http://localhost:$((8000+n)) http://localhost:$((5172+n))
+    note "  session $n: removed the leftover API server on :$((8000+n)) (pid ${(j: :)left})"
+  fi
   tmux has -t "=sb$n" 2>/dev/null && tmux kill-session -t "=sb$n"
   if [[ -z $id ]]; then
-    print "  session $n closed (its claude ran inside tmux — /resume brings the chat back)"
+    [[ -e $f || ${#left} -eq 0 ]] && note "  session $n closed"
   elif (( end )); then
     claude stop $id >/dev/null 2>&1
-    print "  session $n closed, claude $id stopped (the chat is kept: claude attach $id)"
+    note "  session $n closed, claude $id stopped (the chat is kept: claude attach $id)"
   else
-    print "  session $n closed — claude $id keeps running in the background (claude attach $id)"
+    note "  session $n closed — claude $id keeps running in the background (claude attach $id)"
   fi
 }
 
-usage() {
-  cat <<'EOF'
-claude-stepboard — the Claude Code CLI in a browser tab, with a prompt panel beside it
-
-usage:
-  claude-stepboard [use]                    start a board: built panel on :800N (default)
-  claude-stepboard dev                      start a board with hot reload (Vite :5172+N)
-  claude-stepboard ls                       list running sessions
-  claude-stepboard stop [N|all] [--with-claude]
-                                            close session N: servers, Safari tab, tmux viewer;
-                                            claude keeps running in the Claude daemon
-                                              --with-claude  stop that claude too (chat kept)
-                                              no N           only when exactly one board is up
-  claude-stepboard man                      the full manual
-  claude-stepboard -h | --help | help       this summary
-
-A second launch asks "create session N? [Y/n]" — Enter means yes.
-claude runs as a background session in the Claude daemon, one per board slot;
-the board only views it (`claude attach`). Ctrl-C here closes the board, and
-the next launch — or `claude attach <id>` anywhere — picks claude up again.
-
-in the panel:  ⌘J terminal · ⌘K composer · ⌘⇧L grab · ⌥1–9 prompts · ⌃⇧Q close
-EOF
+cmd_stop() {
+  local -a help all withc nocolor
+  zparseopts -D -E -F -- h=help -help=help a=all -all=all -with-claude=withc -no-color=nocolor 2>/dev/null ||
+    die "unknown option" "Run '$PROG stop --help' for usage."
+  (( ${#help} )) && { help_stop; exit 0 }
+  local ops=(${@:#--}) end=$(( ${#withc} > 0 ))
+  if [[ ${ops[(I)all]} -gt 0 ]]; then
+    warn "'stop all' is now 'stop --all'."
+    ops=(${ops:#all}); all=(--all)
+  fi
+  local n targets=()
+  for n in $ops; do [[ $n == <1-> ]] || die "not a session number: $n" "Run '$PROG list' to see sessions."; done
+  if (( ${#all} )); then
+    local s; for s in ${(nu)$(known_slots)}; do
+      if [[ -n $(board_pid $s) || -n $(leftover_pids $s) ]] || tmux has -t "=sb$s" 2>/dev/null; then
+        targets+=$s
+      elif (( end )) && [[ -n $(claude_id $s) ]]; then
+        targets+=$s
+      fi
+    done
+    targets=(${(nu)targets})
+    (( ${#targets} )) || { note '  nothing to stop'; return 0 }
+  elif (( ${#ops} )); then
+    targets=($ops)
+  else
+    local live=() s
+    for s in ${(nu)$(known_slots)}; do [[ -n $(board_pid $s) ]] && live+=$s; done
+    (( ${#live} == 1 )) || { warn "say which session to stop: $PROG stop <N...> | --all"; cmd_list; exit 2 }
+    targets=($live)
+  fi
+  local rc=0
+  for n in $targets; do stop_one $n $end || rc=1; done
+  return $rc
 }
+
+# ── start ────────────────────────────────────────────────────────────────────
+
+ensure_claude() {  # ensure_claude <N> → sets CLAUDE_ID, starting a background session if needed
+  local id=$(claude_id $1)
+  agents
+  if [[ -z $id || $(bg_status $id) == gone ]]; then
+    note "── starting a background claude for slot $1 (Claude daemon)…"
+    id=$(cd ~ && claude --bg --name "StepBoard $1" 2>&1 | sed $'s/\x1b\\[[0-9;]*m//g' |
+         sed -n 's/.*backgrounded · \([0-9a-f]*\).*/\1/p')
+    [[ -n $id ]] || { warn "could not start a background claude. Check 'claude agents'."; return 1 }
+    mkdir -p $STATE && print -r -- $id > $(idfile $1)
+  fi
+  CLAUDE_ID=$id
+}
+
+slot_taken() { [[ -n $(board_pid $1) || -n $(port_pids $1) ]] }
+
+cmd_start() {
+  local -a help dev yes noinput noopen nocolor
+  zparseopts -D -E -F -- h=help -help=help -dev=dev y=yes -yes=yes -no-input=noinput \
+    -no-open=noopen -no-color=nocolor 2>/dev/null ||
+    die "unknown option" "Run '$PROG start --help' for usage."
+  (( ${#help} )) && { help_start; exit 0 }
+  (( ${#nocolor} )) && color_off
+  local ops=(${@:#--})
+  (( ${#ops} )) && die "start takes no arguments: ${ops[1]}" "Run '$PROG start --help' for usage."
+
+  MODE=use; (( ${#dev} )) && MODE=dev
+
+  N=1
+  while slot_taken $N; do ((N++)); done
+  if (( N > 1 )) && (( ! ${#yes} )); then
+    local s
+    for s in {1..$((N-1))}; do
+      if [[ -n $(board_pid $s) ]]; then note "  slot $s: board running"
+      elif [[ -n $(leftover_pids $s) ]]; then
+        note "  slot $s: a leftover StepBoard server holds :$((8000+s)) — '$PROG stop $s' removes it"
+      else note "  slot $s: port $((8000+s)) is used by another program"
+      fi
+    done
+    if (( ${#noinput} )) || [[ ! -t 0 ]]; then
+      die "slot $N is the next free one; pass --yes to use it" "" 1
+    fi
+    read -r "REPLY?create session $N? [Y/n] "
+    [[ -z $REPLY || $REPLY == [yY]* ]] || exit 0
+  fi
+
+  WEB_PORT=$((8000+N))
+  VITE_PORT=$((5172+N))
+  SESSION="sb$N"
+  SOCK=$(sockfile $N)
+  RUNFILE=$(runfile $N)
+  [[ $MODE == dev ]] && OPEN=http://localhost:$VITE_PORT || OPEN=http://localhost:$WEB_PORT
+
+  # Every child's output goes through tag(): one `label │` per line, so the
+  # interleaved streams stay attributable at a glance. fflush() keeps it live —
+  # macOS ships no stdbuf and its sed has no -u. Per-stream sub() drops
+  # boilerplate the label already conveys — ttyd's [timestamp] and its N: notice
+  # marker, uvicorn's INFO: — while W:/E:/WARNING:/ERROR: stay. With colour on,
+  # the product URL is a solid block (bold black on bright green).
+  if (( COLOR )); then URL=$'\033[1;30;102m'; RESET=$'\033[0m'; else URL=; RESET=; fi
+  tag() {  # tag <label> <ansi-color-code>
+    awk -v l="$1" -v c="$2" -v u="$URL" -v r="$RESET" -v color=$COLOR '{
+      if (l == "ttyd") { sub(/^\[[0-9\/: ]+\] /, ""); sub(/^N: /, "") }
+      if (l == "api")  sub(/^INFO: */, "")
+      if (color && l == "vite" && match($0, /http:\/\/localhost:[0-9]+\/?/))
+        $0 = substr($0, 1, RSTART-1) u " " substr($0, RSTART, RLENGTH) " " r substr($0, RSTART+RLENGTH)
+      if (color) printf "\033[1;%sm%4s │\033[0m %s\n", c, l, $0
+      else printf "%4s │ %s\n", l, $0
+      fflush()
+    }'
+  }
+
+  note "── stepboard $N ($MODE) ── api :$WEB_PORT · ui $OPEN ──"
+
+  if [[ $MODE == use ]]; then
+    if [[ ! -e ui/dist/index.html || -n $(find ui/src ui/public ui/index.html ui/vite.config.js \
+          ui/package-lock.json -newer ui/dist/index.html -print -quit) ]]; then
+      ui/node_modules/.bin/vite build ui --logLevel warn > >(tag vite 35) 2>&1 ||
+        warn "build failed — serving the last good ui/dist"
+    fi
+  fi
+
+  KIDS=()
+  CLEANED=0
+  cleanup() {
+    (( CLEANED++ )) && return
+    trap - INT TERM EXIT
+    note ""; note "── closing stepboard $N… (Ctrl-C again to force)"
+    local p
+    for p in $KIDS; do kill -TERM $p 2>/dev/null; done
+    for _ in {1..40}; do
+      local left=0
+      for p in $KIDS; do kill -0 $p 2>/dev/null && left=1; done
+      (( left )) || break
+      sleep 0.05
+    done
+    for p in $KIDS; do kill -KILL $p 2>/dev/null; done
+    tmux has -t "=$SESSION" 2>/dev/null && tmux kill-session -t "=$SESSION"
+    rm -f $RUNFILE $SOCK
+    note "── stepboard $N closed · claude $CLAUDE_ID keeps running in the background ──"
+    exit 0
+  }
+  trap cleanup INT TERM EXIT
+
+  ensure_claude $N || exit 1
+  note "── claude: background session $CLAUDE_ID (StepBoard $N) ──"
+  CLAUDE=(claude attach $CLAUDE_ID)
+  tmux has -t "=$SESSION" 2>/dev/null || tmux new -d -s "$SESSION" -c ~ $CLAUDE
+  rm -f $SOCK
+  ttyd -W -i $SOCK -s KILL tmux new -A -s "$SESSION" -c ~ $CLAUDE \
+    \; set status-style 'bg=#0a0a0c,fg=#9f9fa9' \
+    \; set set-titles on \; set set-titles-string '#T · #S' > >(tag ttyd 36) 2>&1 &
+  KIDS+=$!
+
+  API_ENV=(SB_SESSION=$SESSION SB_TTYD_SOCK=$SOCK PYTHONUNBUFFERED=1)
+  if [[ $MODE == dev ]]; then
+    EXCLUDE=()
+    for d in .venv .claude ui node_modules; do [[ -d $d ]] && EXCLUDE+=(--reload-exclude "$PWD/$d"); done
+    env $API_ENV uv run uvicorn serve:app --port $WEB_PORT --reload $EXCLUDE > >(tag api 32) 2>&1 &
+    KIDS+=$!
+    SB_PORT=$WEB_PORT ui/node_modules/.bin/vite ui --port $VITE_PORT --strictPort > >(tag vite 35) 2>&1 &
+    KIDS+=$!
+  else
+    env $API_ENV uv run uvicorn serve:app --port $WEB_PORT > >(tag api 32) 2>&1 &
+    KIDS+=$!
+  fi
+
+  print -rl -- "LAUNCHER=$$" "MODE=$MODE" \
+    "URLS=(http://localhost:$WEB_PORT http://localhost:$VITE_PORT)" "KIDS=($KIDS)" > $RUNFILE
+
+  up() {
+    curl -sf -o /dev/null -m 1 http://127.0.0.1:$WEB_PORT/api/config || return 1
+    [[ $MODE == use ]] || curl -sf -o /dev/null -m 1 $OPEN/
+  }
+  for _ in {1..200}; do up && break; sleep 0.05; done
+
+  printf '\n%s  ▶  OPEN  %s  %s\n\n' "$URL" "$OPEN" "$RESET"
+  (( ${#noopen} )) || open -a Safari $OPEN   # localhost, not 127.0.0.1 — vite may bind IPv6 only
+  wait   # keep the launcher in the foreground; Ctrl-C or `stop` runs cleanup
+}
+
+# ── dispatch ─────────────────────────────────────────────────────────────────
 
 case $1 in
-  -h|--help|help) usage; exit 0 ;;
-  man) exec man ./man/claude-stepboard.1 ;;
-  ls) list; exit 0 ;;
+  -h|--help)  help_main; exit 0 ;;
+  --version)  print "$PROG $VERSION ($(git rev-parse --short HEAD 2>/dev/null || print unknown))"; exit 0 ;;
+  ''|-*)      cmd_start "$@"; exit $? ;;
 esac
 
-if [[ $1 == stop ]]; then
-  shift
-  local end=0 which=
-  for a in $@; do [[ $a == --with-claude ]] && end=1 || which=$a; done
-  local all=(${(nu)$(boards)})
-  local f; for f in $STATE/claude-*.id(N); do (( end )) && all+=${${f:t:r}#claude-}; done
-  all=(${(nu)all})
-  (( ${#all} )) || { print '  nothing to stop'; exit 0 }
-  if [[ -z $which ]]; then
-    local mine=() f
-    for f in $RUN/stepboard-*.run(N); do source $f; alive $LAUNCHER && mine+=${${f:t:r}#stepboard-}; done
-    (( ${#mine} == 1 )) || { print 'say which session: claude-stepboard stop <N|all>'; list; exit 2 }
-    which=$mine[1]
-  fi
-  [[ $which == all ]] && targets=($all) || targets=($which)
-  for n in $targets; do
-    [[ $n == <-> ]] || { print "not a session number: $n"; exit 2 }
-    stop_one $n $end
-  done
-  exit 0
-fi
-
-MODE=${1:-use}
-[[ $MODE == (use|dev) ]] || { print -u2 "claude-stepboard: unknown command '$MODE'\n"; usage >&2; exit 2 }
-
-N=1
-while lsof -nP -iTCP:$((8000+N)) -sTCP:LISTEN >/dev/null 2>&1; do
-  ((N++))                            # 8001 busy → try 8002, 8003, ...
-done
-
-if (( N > 1 )); then
-  read -r "REPLY?session(s) 1..$((N-1)) already running — create session $N? [Y/n] "
-  [[ -z $REPLY || $REPLY == [yY]* ]] || exit 0
-fi
-
-WEB_PORT=$((8000+N))
-VITE_PORT=$((5172+N))                # session 1 → 5173, session 2 → 5174, ...
-SESSION="sb$N"
-SOCK=$(sockfile $N)
-RUNFILE=$(runfile $N)
-[[ $MODE == dev ]] && OPEN=http://localhost:$VITE_PORT || OPEN=http://localhost:$WEB_PORT
-
-# Every child's output goes through tag(): one colored `label │` per line, so the
-# interleaved streams stay attributable at a glance. fflush() keeps it live —
-# macOS ships no stdbuf and its sed has no -u. Per-stream sub() drops
-# boilerplate the label already conveys — ttyd's [timestamp] and its N: notice
-# marker, uvicorn's INFO: — while W:/E:/WARNING:/ERROR: stay. The product URL is
-# a solid block (bold black on bright green) wherever it shows.
-URL=$'\033[1;30;102m'; RESET=$'\033[0m'
-tag() {  # tag <label> <ansi-color-code>
-  awk -v l="$1" -v c="$2" -v u="$URL" -v r="$RESET" '{
-    if (l == "ttyd") { sub(/^\[[0-9\/: ]+\] /, ""); sub(/^N: /, "") }
-    if (l == "api")  sub(/^INFO: */, "")
-    if (l == "vite" && match($0, /http:\/\/localhost:[0-9]+\/?/))
-      $0 = substr($0, 1, RSTART-1) u " " substr($0, RSTART, RLENGTH) " " r substr($0, RSTART+RLENGTH)
-    printf "\033[1;%sm%4s │\033[0m %s\n", c, l, $0; fflush()
-  }'
-}
-
-print -P "%F{8}── stepboard $N ($MODE) ── term $SOCK · api :$WEB_PORT · ui ${URL} $OPEN ${RESET}%F{8} ──%f"
-
-if [[ $MODE == use ]]; then
-  if [[ ! -e ui/dist/index.html || -n $(find ui/src ui/public ui/index.html ui/vite.config.js \
-        ui/package-lock.json -newer ui/dist/index.html -print -quit) ]]; then
-    ui/node_modules/.bin/vite build ui --logLevel warn > >(tag vite 35) 2>&1 ||
-      print "build failed — serving the last good ui/dist"
-  fi
-fi
-
-KIDS=()
-CLEANED=0
-cleanup() {
-  (( CLEANED++ )) && return
-  trap - INT TERM EXIT
-  local p
-  for p in $KIDS; do kill -TERM $p 2>/dev/null; done
-  for _ in {1..40}; do
-    local left=0
-    for p in $KIDS; do kill -0 $p 2>/dev/null && left=1; done
-    (( left )) || break
-    sleep 0.05
-  done
-  for p in $KIDS; do kill -KILL $p 2>/dev/null; done
-  tmux has -t "=$SESSION" 2>/dev/null && tmux kill-session -t "=$SESSION"
-  rm -f $RUNFILE $SOCK
-  print -P "\n%F{8}── stepboard $N closed · claude $CLAUDE_ID keeps running in the background ──%f"
-  exit 0
-}
-trap cleanup INT TERM EXIT
-
-ensure_claude $N || exit 1
-print -P "%F{8}── claude: background session $CLAUDE_ID (StepBoard $N) ──%f"
-CLAUDE=(claude attach $CLAUDE_ID)
-tmux has -t "=$SESSION" 2>/dev/null || tmux new -d -s "$SESSION" -c ~ $CLAUDE
-rm -f $SOCK
-ttyd -W -i $SOCK -s KILL tmux new -A -s "$SESSION" -c ~ $CLAUDE \
-  \; set status-style 'bg=#0a0a0c,fg=#9f9fa9' \
-  \; set set-titles on \; set set-titles-string '#T · #S' > >(tag ttyd 36) 2>&1 &
-KIDS+=$!
-
-API_ENV=(SB_SESSION=$SESSION SB_TTYD_SOCK=$SOCK PYTHONUNBUFFERED=1)
-if [[ $MODE == dev ]]; then
-  EXCLUDE=()
-  for d in .venv .claude ui node_modules; do [[ -d $d ]] && EXCLUDE+=(--reload-exclude "$PWD/$d"); done
-  env $API_ENV uv run uvicorn serve:app --port $WEB_PORT --reload $EXCLUDE > >(tag api 32) 2>&1 &
-  KIDS+=$!
-  SB_PORT=$WEB_PORT ui/node_modules/.bin/vite ui --port $VITE_PORT --strictPort > >(tag vite 35) 2>&1 &
-  KIDS+=$!
-else
-  env $API_ENV uv run uvicorn serve:app --port $WEB_PORT > >(tag api 32) 2>&1 &
-  KIDS+=$!
-fi
-
-print -rl -- "LAUNCHER=$$" "MODE=$MODE" \
-  "URLS=(http://localhost:$WEB_PORT http://localhost:$VITE_PORT)" "KIDS=($KIDS)" > $RUNFILE
-
-up() {
-  curl -sf -o /dev/null -m 1 http://127.0.0.1:$WEB_PORT/api/config || return 1
-  [[ $MODE == use ]] || curl -sf -o /dev/null -m 1 $OPEN/
-}
-for _ in {1..200}; do up && break; sleep 0.05; done
-
-printf '\n%s  ▶  OPEN  %s  %s\n\n' "$URL" "$OPEN" "$RESET"
-open -a Safari $OPEN                 # localhost, not 127.0.0.1 — vite may bind IPv6 only
-wait   # keep the launcher in the foreground; Ctrl-C or `claude-stepboard stop` runs cleanup
+cmd=$1; shift
+case $cmd in
+  start)      cmd_start "$@" ;;
+  list|ls)    cmd_list "$@" ;;
+  stop)       cmd_stop "$@" ;;
+  man)        [[ $1 == (-h|--help) ]] && { help_man; exit 0 }; exec man ./man/claude-stepboard.1 ;;
+  help)       case $1 in
+                ''|help) [[ -z $1 ]] && help_main || help_help ;;
+                start|list|ls|stop|man) help_${${1/ls/list}} ;;
+                *) unknown_command $1 ;;
+              esac ;;
+  use)        warn "'use' is now 'start' (or just '$PROG')."; cmd_start "$@" ;;
+  dev)        warn "'dev' is now 'start --dev'."; cmd_start --dev "$@" ;;
+  *)          unknown_command $cmd ;;
+esac

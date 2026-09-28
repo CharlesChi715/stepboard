@@ -18,7 +18,7 @@ stepboard/
 │       ├── components/ # MessageBar · Constraints · Prompts · History · Badge · LinkPill · WhatsNew · Shortcuts
 │       ├── hooks/      # useTtyd (xterm + ttyd protocol + reconnect) · useHistory · usePrompts
 │       └── lib/        # compose.js (raw/tail/send) · ui.js (class strings, FOCUS) · news.js · keys.js
-├── bin/claude-stepboard  # launcher: [use] · dev · ls · stop [N|all] [--with-claude] · man · --help
+├── bin/claude-stepboard  # CLI: [start] [--dev] · list [--json] · stop [N...] [-a] [--with-claude] · man · help
 │                         #   (~/.local/bin/claude-stepboard symlinks here)
 ├── man/claude-stepboard.1  # manual; --help is in the launcher; tests/docs.mjs keeps both in sync
 ├── tests/              # proxy · typed.py · security · parity · regressions · drag-select · resilience
@@ -37,7 +37,10 @@ stepboard/
   with `-s KILL` · uvicorn :800N · (dev) Vite :5172+N. Safari opens once `/api/config` answers.
 - `use` mode serves ui/dist from uvicorn (~80 MB, 0% idle CPU), rebuilding if ui/ is newer.
   `dev` = Vite HMR + `uvicorn --reload` on watchfiles, with absolute `--reload-exclude` paths.
-- Close: `claude-stepboard stop [N|all] [--with-claude]` acts only on `$TMPDIR/stepboard-N.run`
+- CLI follows ~/.agents/guidelines (clig.dev + POSIX/GNU): zparseopts, -h/--help + --version,
+  per-command help, did-you-mean, prompt only on a TTY (-y/--no-input), NO_COLOR, exit 0/1/2;
+  old `use`/`dev`/`stop all` still work with a warning. One slot model for start/list/stop.
+- Close: `claude-stepboard stop [N...] [--all] [--with-claude]` acts only on `$TMPDIR/stepboard-N.run`
   (launcher + child PIDs), exact tmux `=sbN` and the slot's claude id; bare `stop` needs exactly one live board. Never pkill patterns
   or the tmux server (the server's argv looks like `tmux new …`).
 - Security: no TCP ttyd; `/api/ws` refuses foreign Origin; TrustedHost refuses foreign Host;

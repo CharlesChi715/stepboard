@@ -8,12 +8,13 @@ before the next is added. (The previous full version lives in git @ 2a92f3f.)
 
 ```sh
 cd ui && npm install && cd .. && uv sync      # first time only
-claude-stepboard                              # use mode: terminal + panel + Safari, one command
-claude-stepboard dev                          # dev mode: the same, plus hot reload
+claude-stepboard                              # start a board: terminal + panel + Safari
+claude-stepboard start --dev                  # the same, plus hot reload
                                               # run again → session 2, 3, … own ports each
-claude-stepboard ls                           # what is running
-claude-stepboard stop [N|all] [--with-claude] # close a board: servers, Safari tab, tmux viewer
-claude-stepboard --help                       # one-screen summary · `claude-stepboard man` = full manual
+claude-stepboard list                         # what is running (--json for scripts; alias ls)
+claude-stepboard stop [N...] [-a|--all] [--with-claude]
+                                              # close boards: servers, Safari tab, tmux viewer
+claude-stepboard help [command] · --version   # help · `claude-stepboard man` = full manual
 ```
 
 claude runs as a **background session in the Claude daemon** (`claude --bg`),
@@ -27,8 +28,12 @@ re-attaches to the same session, draft included. `--with-claude` (⌥⏎ in the
 Closing is scoped to what the launcher recorded in `$TMPDIR/stepboard-N.run`
 (its own PID and its children's PIDs), the exact tmux session `sbN` and the slot's
 own claude id — never a name pattern, never the tmux server, never another claude.
-A bare `stop` only acts when exactly one board is running. When a session is
-already up, the launcher asks `[Y/n]` — Enter means yes. The first ⌃⇧Q close asks
+A bare `stop` only acts when exactly one board is running. When a slot is
+already taken, the launcher asks `[Y/n]` — Enter means yes; `-y` answers up front,
+and without a terminal (or with `--no-input`) it never asks. `list` also shows
+leftovers (an API server still holding :800N with no board); `stop N` removes them.
+The interface follows clig.dev and the POSIX/GNU option rules: `-h/--help` and
+`--version` everywhere, long names for every flag, exit 0 ok · 1 failed · 2 usage. The first ⌃⇧Q close asks
 whether your terminal may control Safari — that is the tab-closing step.
 
 (`claude-stepboard` is a symlink in `~/.local/bin` → `bin/claude-stepboard`.)

@@ -7,7 +7,7 @@ intercepted so nothing is ever typed into your CLI.
 | file | what it covers |
 | --- | --- |
 | `harness.mjs` | shared setup: launch, deterministic `until()`/`load()` waits, PASS/FAIL log, summary, exit code |
-| `docs.mjs` | 22 checks — `--help`, the man page (mandoc lint), and every command and panel shortcut documented in both. No stack |
+| `docs.mjs` | 37 checks — the CLI (--help, --version, per-command help, typo suggestions, exit codes, list --json), the man page (mandoc lint), and every command, flag and panel shortcut documented in both. Read-only, no stack |
 | `proxy.mjs` | 7 checks — every path the panel calls is under the one proxied `/api` prefix. No browser, no stack |
 | `typed.py` | 6 checks — how `/api/send` types text: trailing `;`, 400-char pieces for long messages. No stack |
 | `security.mjs` | 8 checks — foreign Host / Origin are refused on the API, the terminal socket and close-board. No browser |
