@@ -525,3 +525,5 @@
 - Incidents: my cleanup killed the default tmux server (argv looked like a scratch `tmux new`), and a bare `stop` test closed the live sb2. Bare stop now requires exactly one live board.
 
 - 2026-09-29: launcher prompt is [Y/n] (Enter = yes); ⌃⇧Q closes the board from the panel (confirm dialog, POST /api/stop spawns a detached `claude-stepboard stop N`, refuses non-sbN sessions). 140/140 on Chromium + WebKit.
+
+- 2026-09-29: claude-stepboard --help / -h / help and `man` subcommand; man/claude-stepboard.1 (mdoc, lint-clean); tests/docs.mjs keeps --help, the man page and lib/keys.js in sync.

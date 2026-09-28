@@ -5,7 +5,7 @@
   "description": "Headless browser checks for the panel. The app itself lives in ui/.",
   "scripts": {
     "pretest": "npm --prefix ui run lint && npm --prefix ui run build",
-    "test": "s=0; node tests/proxy.mjs || s=1; uv run python tests/typed.py || s=1; for t in security parity regressions drag-select resilience; do node tests/$t.mjs || s=1; done; exit $s",
+    "test": "s=0; node tests/docs.mjs || s=1; node tests/proxy.mjs || s=1; uv run python tests/typed.py || s=1; for t in security parity regressions drag-select resilience; do node tests/$t.mjs || s=1; done; exit $s",
     "test:webkit": "SB_BROWSER=webkit npm test"
   },
   "devDependencies": {

@@ -69,7 +69,33 @@ stop_one() {  # stop_one <N> <keep>
   fi
 }
 
-if [[ $1 == ls ]]; then list; exit 0; fi
+usage() {
+  cat <<'EOF'
+claude-stepboard — the Claude Code CLI in a browser tab, with a prompt panel beside it
+
+usage:
+  claude-stepboard [use]                    start a board: built panel on :800N (default)
+  claude-stepboard dev                      start a board with hot reload (Vite :5172+N)
+  claude-stepboard ls                       list running sessions
+  claude-stepboard stop [N|all] [--keep]    close session N: servers, Safari tab, tmux sbN
+                                              --keep  leave claude running in tmux
+                                              no N    only when exactly one board is up
+  claude-stepboard man                      the full manual
+  claude-stepboard -h | --help | help       this summary
+
+A second launch asks "create session N? [Y/n]" — Enter means yes.
+Ctrl-C in this window stops the board and keeps claude in tmux; the chat is
+always saved, and /resume in claude brings it back.
+
+in the panel:  ⌘J terminal · ⌘K composer · ⌘⇧L grab · ⌥1–9 prompts · ⌃⇧Q close
+EOF
+}
+
+case $1 in
+  -h|--help|help) usage; exit 0 ;;
+  man) exec man ./man/claude-stepboard.1 ;;
+  ls) list; exit 0 ;;
+esac
 
 if [[ $1 == stop ]]; then
   shift
@@ -92,7 +118,7 @@ if [[ $1 == stop ]]; then
 fi
 
 MODE=${1:-use}
-[[ $MODE == (use|dev) ]] || { print "usage: claude-stepboard [use|dev] · claude-stepboard ls · claude-stepboard stop [N|all] [--keep]"; exit 2 }
+[[ $MODE == (use|dev) ]] || { print -u2 "claude-stepboard: unknown command '$MODE'\n"; usage >&2; exit 2 }
 
 N=1
 while lsof -nP -iTCP:$((8000+N)) -sTCP:LISTEN >/dev/null 2>&1; do

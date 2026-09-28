@@ -13,6 +13,7 @@ claude-stepboard dev                          # dev mode: the same, plus hot rel
                                               # run again → session 2, 3, … own ports each
 claude-stepboard ls                           # what is running
 claude-stepboard stop [N|all] [--keep]        # close a board: servers, its Safari tab, tmux sbN
+claude-stepboard --help                       # one-screen summary · `claude-stepboard man` = full manual
 ```
 
 Closing is scoped to what the launcher recorded in `$TMPDIR/stepboard-N.run`
@@ -106,6 +107,7 @@ the latest changes.
 - `ui/src/hooks/useTtyd.js` — xterm.js + ttyd's wire protocol + the reconnect policy
 - `ui/src/lib/compose.js` — message + constraints → the text Claude receives
 - `ui/src/lib/news.js` — the "what's new" popup's content; bump `NEWS_ID` to show it again
+- `man/claude-stepboard.1` — the manual (mdoc); `claude-stepboard man` opens it
 - `bin/claude-stepboard` — launcher: finds free slot N, starts ttyd + uvicorn (+ vite in dev), opens panel
 - `tests/` — headless browser checks, `npm test` (see `tests/README.md`)
 - `pyproject.toml` + `uv.lock` — Python deps (FastAPI, uvicorn, websockets, watchfiles) for `uv run`

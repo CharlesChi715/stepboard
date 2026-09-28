@@ -1,0 +1,207 @@
+.Dd September 29, 2026
+.Dt CLAUDE-STEPBOARD 1
+.Os
+.Sh NAME
+.Nm claude-stepboard
+.Nd the Claude Code CLI in a browser tab, with a panel of prompt buttons beside it
+.Sh SYNOPSIS
+.Nm
+.Op Cm use
+.Nm
+.Cm dev
+.Nm
+.Cm ls
+.Nm
+.Cm stop
+.Op Ar N | Cm all
+.Op Fl -keep
+.Nm
+.Cm man
+.Nm
+.Fl h | Fl -help | Cm help
+.Sh DESCRIPTION
+.Nm
+starts a StepBoard session: the real
+.Xr claude 1
+running in a
+.Xr tmux 1
+session, a terminal bridge
+.Pq Xr ttyd 1
+on a private unix socket, a small FastAPI server, and a Safari tab that draws
+the terminal on the left and the panel on the right.
+.Pp
+Every run adds an independent session
+.Ar N ,
+starting at 1.
+When a session is already running,
+.Nm
+asks
+.Sq create session N? [Y/n] ;
+Enter means yes.
+.Pp
+The claude process lives in tmux, not in the browser.
+Reloading or closing the tab, or pressing Ctrl-C in the launcher window,
+leaves it running, and the next launch re-attaches to it.
+.Sh COMMANDS
+.Bl -tag -width Ds
+.It Cm use
+The default.
+Serves the built panel
+.Pq Pa ui/dist
+from the API server on port 8000+N: no Node, no reloader, about 80 MB per
+session.
+Rebuilds
+.Pa ui/dist
+first if anything under
+.Pa ui/
+is newer than it.
+.It Cm dev
+For working on StepBoard itself.
+Vite serves the panel on port 5172+N with hot reload, and the API server
+restarts when
+.Pa serve.py
+changes.
+About 480 MB per session.
+.It Cm ls
+Lists running sessions: the board
+.Pq mode and URL
+and whether claude is alive in tmux
+.Li sb Ns Ar N .
+.It Cm stop Oo Ar N | Cm all Oc Op Fl -keep
+Closes session
+.Ar N :
+stops its servers, closes its Safari tab and ends tmux session
+.Li sb Ns Ar N .
+With
+.Fl -keep ,
+claude stays running in tmux so the next launch re-attaches.
+.Cm all
+closes every session.
+Without
+.Ar N ,
+it acts only when exactly one board is running.
+.Pp
+It only ever touches what the launcher recorded in its run file and the exact
+tmux session name \(em never a name pattern, never the tmux server, never a
+claude outside
+.Li sb Ns Ar N .
+The chat is saved on disk either way;
+.Li /resume
+in claude brings it back.
+.It Cm man
+Shows this page.
+.It Fl h , Fl -help , Cm help
+Prints a one-screen summary.
+.El
+.Sh SESSIONS
+.Bl -column "session" "sbN" "$TMPDIR/stepboard-N.sock" "8000+N" "5172+N"
+.It Em session Ta Em tmux Ta Em terminal socket Ta Em panel Ta Em dev panel
+.It 1 Ta sb1 Ta $TMPDIR/stepboard-1.sock Ta 8001 Ta 5173
+.It 2 Ta sb2 Ta $TMPDIR/stepboard-2.sock Ta 8002 Ta 5174
+.It N Ta sbN Ta $TMPDIR/stepboard-N.sock Ta 8000+N Ta 5172+N
+.El
+.Sh KEYS
+In the panel
+.Pq also listed in its SHORTCUTS card :
+.Bl -tag -width "Cm Ctrl-Shift-Q"
+.It Cm Cmd-J
+Jump to the terminal.
+.It Cm Cmd-K
+Jump to the composer.
+.It Cm Cmd-Shift-L
+Grab the terminal selection into the composer
+.Pq Cm Ctrl-Shift-L No too .
+.It Cm Option-1..9
+Arm or disarm prompt 1..9.
+.It Cm Return
+Send, from anywhere outside the terminal.
+.It Cm Ctrl-Shift-Q
+Close this StepBoard.
+It asks first: Return closes everything, Option-Return keeps claude
+running, Escape cancels.
+.It Cm Shift-Return
+New line, in the composer and in the terminal.
+.It Cm Up , Cm Down
+Walk the history once the caret is at the edge of the composer.
+.It Cm Cmd-A
+Select all of the draft.
+.It Cm drag
+Select text in the terminal; it is copied to the clipboard.
+.It Cm Escape
+In the prompt editor: back out of the delete confirm, then the form, then
+edit mode.
+.El
+.Pp
+Lines starting with
+.Ql /command
+or
+.Ql \&!shell
+are sent exactly as typed.
+Anything else gets the armed prompts and the Length/Format/Edits clauses
+appended; the line under the composer shows what.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev TMPDIR
+Where the run files and sockets live
+.Pq default Pa /tmp .
+.It Ev SB_SESSION , Ev SB_TTYD_SOCK , Ev SB_PROMPTS
+Set by the launcher for
+.Pa serve.py ;
+set them yourself only to run the server by hand, e.g. for the tests.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa $TMPDIR/stepboard-N.run
+The launcher's PID and its children's PIDs.
+.Cm stop
+reads it; the launcher removes it on exit.
+.It Pa $TMPDIR/stepboard-N.sock
+The ttyd socket.
+Only local processes can reach it; the page talks to it through
+.Pa /api/ws .
+.It Pa prompts.json
+The prompt buttons, next to
+.Pa serve.py ,
+shared by every session.
+.Ev SB_PROMPTS
+moves it.
+.It Pa ~/.claude/projects/
+Where claude keeps the chat, which is what
+.Li /resume
+reads.
+.El
+.Sh EXIT STATUS
+.Ex -std
+Answering no to
+.Sq create session N?
+also exits 0.
+A wrong command or an ambiguous bare
+.Cm stop
+exits 2.
+.Sh EXAMPLES
+Start the default board and open it in Safari:
+.Dl claude-stepboard
+.Pp
+Hack on the panel with hot reload:
+.Dl claude-stepboard dev
+.Pp
+Restart a board to pick up new code, keeping claude alive:
+.Dl claude-stepboard stop 2 --keep && claude-stepboard
+.Pp
+Close everything:
+.Dl claude-stepboard stop all
+.Sh SEE ALSO
+.Xr claude 1 ,
+.Xr tmux 1 ,
+.Xr ttyd 1
+.Pp
+.Pa README.md
+and
+.Pa SUMMARY.md
+in the repository.
+.Sh SECURITY CONSIDERATIONS
+A web terminal is a full shell.
+ttyd has no TCP port.
+The API refuses any Host other than localhost or 127.0.0.1 and any
+cross-site Origin, which blocks DNS rebinding and cross-site WebSocket
+hijacking.

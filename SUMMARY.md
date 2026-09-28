@@ -20,6 +20,7 @@ stepboard/
 │       └── lib/        # compose.js (raw/tail/send) · ui.js (class strings, FOCUS) · news.js · keys.js
 ├── bin/claude-stepboard  # launcher: [use] · dev · ls · stop [N|all] [--keep]
 │                         #   (~/.local/bin/claude-stepboard symlinks here)
+├── man/claude-stepboard.1  # manual; --help is in the launcher; tests/docs.mjs keeps both in sync
 ├── tests/              # proxy · typed.py · security · parity · regressions · drag-select · resilience
 ├── package.json        # Playwright + `npm test` (pretest = lint + build)
 ├── pyproject.toml      # fastapi, uvicorn, websockets, watchfiles (via uv)
