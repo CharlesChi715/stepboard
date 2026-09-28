@@ -69,6 +69,10 @@ stepboard/
   gone, ⌘⇧L remains. Grabbing consumes the selection — `takeSelection` calls
   `term.clearSelection()`, so the highlight strip disappears once the text is in
   the input. `lastSel` still holds it, so a repeat ⌘⇧L pastes the same text.
+- Copy-on-select: every selection also goes to the clipboard (`onSelection` →
+  `navigator.clipboard.writeText`). The badge reads `selected: N chars · copied`
+  or `· clipboard blocked`; tests match the `selected: N chars` prefix, so keep it.
+  Safari allows the write because the re-dispatched mouseup is synchronous.
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
