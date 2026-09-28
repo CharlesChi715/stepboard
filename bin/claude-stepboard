@@ -158,7 +158,7 @@ cleanup() {
 }
 trap cleanup INT TERM EXIT
 
-CLAUDE=(claude --settings '{"preferredNotifChannel":"terminal_bell"}')
+CLAUDE=(claude)
 tmux has -t "=$SESSION" 2>/dev/null || tmux new -d -s "$SESSION" -c ~ $CLAUDE
 rm -f $SOCK
 ttyd -W -i $SOCK -s KILL tmux new -A -s "$SESSION" -c ~ $CLAUDE \
