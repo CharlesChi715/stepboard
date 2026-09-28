@@ -12,9 +12,9 @@ import { Length, Format, Edits } from './components/Constraints.jsx'
 
 export default function App() {
   const [msg, setMsg] = useState('')
-  const [unit, setUnit] = useState('auto')
-  const [n, setN] = useState('')
-  const [chart, setChart] = useState(true)
+  const [unit, setUnit] = useState('words')
+  const [n, setN] = useState('200')
+  const [chart, setChart] = useState(false)
   const [lines, setLines] = useState('')
   const [armed, setArmed] = useState([])
   const [showHist, setShowHist] = useState(false)

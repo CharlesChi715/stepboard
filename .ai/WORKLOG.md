@@ -500,3 +500,9 @@
 - tests/drag-select.mjs: highlight-survives check → '⌘⇧L still grabs after a
   move' + 'idle mouse movement reaches the app'. npm test 87/87.
 - Branch: worktree-hover-passthrough.
+
+## 2026-09-28 — composer defaults
+- App.jsx: chart (ASCII clause) starts false; LENGTH starts at words/200.
+- Constraints.jsx: UNIT_DEFAULTS.words 100 → 200.
+- parity: 'chart clause off by default' + 'length defaults to 200 words'.
+  npm test 88/88. Branch: worktree-chart-off-default.
