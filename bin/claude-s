@@ -44,7 +44,7 @@ tag() {  # tag <label> <ansi-color-code>
 
 print -P "%F{8}── stepboard $N ── term :$TTYD_PORT · api :$WEB_PORT · ui ${URL} http://localhost:$VITE_PORT ${RESET}%F{8} ──%f"
 
-ttyd -W -i lo0 -p $TTYD_PORT tmux new -A -s $SESSION claude 2>&1 | tag ttyd 36 &
+ttyd -W -i lo0 -p $TTYD_PORT tmux new -A -s $SESSION -c ~ claude 2>&1 | tag ttyd 36 &
 # PYTHONUNBUFFERED: print() into a pipe block-buffers, which would hold back
 # serve.py's POST /send lines for minutes; force line-by-line delivery.
 SB_SESSION=$SESSION SB_TTYD_PORT=$TTYD_PORT PYTHONUNBUFFERED=1 \
@@ -52,5 +52,5 @@ SB_SESSION=$SESSION SB_TTYD_PORT=$TTYD_PORT PYTHONUNBUFFERED=1 \
 (cd ui && SB_PORT=$WEB_PORT npm run dev -- --port $VITE_PORT --strictPort 2>&1 | tag vite 35) &
 sleep 1                                      # let the three streams print their startup noise first
 printf '\n%s  ▶  OPEN  http://localhost:%s  %s\n\n' "$URL" "$VITE_PORT" "$RESET"
-open http://localhost:$VITE_PORT             # localhost, not 127.0.0.1 — vite may bind IPv6 only
+open -a Safari http://localhost:$VITE_PORT   # localhost, not 127.0.0.1 — vite may bind IPv6 only
 wait   # keep script in foreground; Ctrl-C kills this session's ttyd + uvicorn + vite together

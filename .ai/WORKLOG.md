@@ -455,3 +455,22 @@
 - Charles: "not highlighted enough" — bold+underline was too quiet. Now a solid
   block (`\033[1;30;102m`, padded), plus a standalone blank-framed `▶ OPEN
   http://localhost:517N` line printed after the 1s settle, right before `open`.
+
+## 2026-09-28 — claude starts in ~, not the repo
+- bin/claude-s: tmux gets `-c ~`. The launcher cds to the repo root for
+  uvicorn/vite; claude inherited it, so every session opened in stepboard/.
+- `claude-stepboard` (~/.dotfiles/bin) only execs bin/claude-s — unchanged.
+- README: manual-equivalent command + a line in "How it works"; SUMMARY bullet.
+- Caveat: `-c` only applies to a NEW session — `tmux new -A` re-attaches a
+  surviving sbN, which keeps its old folder (end it once to pick up `~`).
+- Verified: the real launcher line against a private tmux server, run from the
+  repo root → argv `tmux new -A -s sbverify -c /Users/charles claude`; claude's
+  cwd /Users/charles (pane_current_path + lsof).
+- Branch: worktree-claude-s-home-cwd.
+
+## 2026-09-28 — claude-s opens Safari
+- bin/claude-s: `open -a Safari http://localhost:$VITE_PORT` instead of plain
+  `open`, which followed the default browser (Chrome).
+- README + SUMMARY say Safari; SUMMARY's Safari check now notes Safari binds
+  ⌘⇧L (sidebar) and ⌘J itself, so the panel's shortcuts may lose to it.
+- Branch: worktree-claude-s-home-cwd (with the `-c ~` fix).

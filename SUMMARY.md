@@ -52,7 +52,10 @@ stepboard/
   DOM survive as descendant variants on the host div (`[&_.xterm]:h-full`).
 - `.prompts` no longer needs `!important` — a fieldset carries its own classes.
 - Stack: `./bin/claude-s` → ttyd+tmux (`sbN`, :768N) + FastAPI (:800N, `--reload`)
-  + vite dev server (:5172+N, HMR) — browser opens vite; everything hot-reloads.
+  + vite dev server (:5172+N, HMR) — Safari opens vite (`open -a Safari`, not the
+  default browser); everything hot-reloads.
+- claude starts in `~` (`tmux new … -c ~`); the repo root is only uvicorn/vite's
+  cwd. `-A` re-attaches a surviving `sbN`, which keeps its original folder.
 - claude-s tags each child's output with a colored `label │` prefix (ttyd/api/
   vite), strips timestamp+N:/INFO: noise, keeps W:/E:, prints a ports banner.
   Vite's stream is visible (was >/dev/null); ⌘⇧L leaves the caret on a fresh line.
@@ -151,6 +154,7 @@ stepboard/
 
 ## Next potential steps
 
-- Charles: confirm drag-select + ⌘⇧L in Safari (only Chromium is covered).
+- Charles: confirm drag-select + ⌘⇧L in Safari (only Chromium is covered) — the
+  launcher opens Safari now, and Safari binds ⌘⇧L (sidebar) and ⌘J itself.
 - Later: auto-reconnect when ttyd drops · error handling (dead tmux) ·
   reorder prompts (edit/delete now exist; order is still fixed).
