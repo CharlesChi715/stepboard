@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { FIELDSET, FIELDSET_BARE, LABEL, LEGEND, LEGEND_BARE, NUM, TICK } from '../lib/ui.js'
 
-const UNIT_DEFAULTS = { sentences: 2, words: 100 }
+const UNIT_DEFAULTS = { sentences: 2, words: 200 }
 
 // Each fieldset appends one clause at send time; blank/unticked appends nothing.
 export function Length({ unit, n, onUnit, onN }) {

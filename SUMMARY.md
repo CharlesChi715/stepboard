@@ -76,8 +76,10 @@ stepboard/
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 87 headless checks pass (5 proxy + 69 parity +
+- UI is React + Vite + Tailwind; 88 headless checks pass (5 proxy + 70 parity +
   5 regression + 8 drag-select), run via `npm test`, non-zero exit on failure.
+- Composer defaults: LENGTH = 200 words (picking "words" also pops 200), the
+  ASCII diagram/chart/table box starts unticked.
   All but `proxy.mjs` need a live stack on `SB_BASE` (default :8011) serving a
   built `ui/dist`, started with `SB_PROMPTS` pointing somewhere throwaway.
 - There is ONE kind of prompt. `BUILTIN` is a seed for a fresh browser, not a
