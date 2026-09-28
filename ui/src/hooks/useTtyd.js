@@ -62,13 +62,7 @@ export function useTtyd({ onSelection } = {}) {
         return
       }
       if (e.type === 'mousemove' || e.type === 'mouseup') { // mid-drag: re-target at the
-        if (!dragging) {                                    // document, where xterm's
-          // Idle moves over the terminal must die here too: with all-motion
-          // reporting on, xterm counts each outgoing report as user input and
-          // clears the selection — one twitch after mouseup and it's gone.
-          if (e.target.closest?.('.xterm')) e.stopImmediatePropagation()
-          return
-        }
+        if (!dragging) return                               // document, where xterm's
         if (e.type === 'mouseup') { dragging = false; e.preventDefault() }
         e.stopImmediatePropagation()                        // selection tracker listens —
         document.dispatchEvent(clone(e))                    // the app's reporting does not

@@ -22,13 +22,13 @@ await suite('drag-select', async ({ page, ok }) => {
   const badge = await page.locator('.badge').textContent().catch(() => '')
   ok('drag selects while mouse reporting is ON', /selected: \d+ chars/.test(badge), badge)
 
-  // after release, an idle mousemove used to reach xterm, which reported the
-  // motion to the app and treated its own report as user input → selection gone
   await page.mouse.move(box.x + 200, box.y + 60, { steps: 8 })
   await page.waitForTimeout(250)
-  const highlight = await page.evaluate(() =>
-    document.querySelectorAll('.term .xterm-selection div').length)
-  ok('highlight survives idle mousemove after release', highlight > 0, `${highlight} divs`)
+  await page.fill('.panel textarea', '')
+  await page.keyboard.press('Meta+Shift+L')
+  await page.waitForTimeout(250)
+  const kept = await page.inputValue('.panel textarea')
+  ok('selection survives idle mousemove (⌘⇧L still grabs it)', kept.length > 0, JSON.stringify(kept.slice(0, 40)))
 
   await page.fill('.panel textarea', '')
   await drag(20)
@@ -55,8 +55,12 @@ await suite('drag-select', async ({ page, ok }) => {
   ok('typing still reaches the shell', (await page.locator('.term').innerText()).includes('STILL_TYPING_OK'))
 
   await page.keyboard.press('Control+C')
-  await page.keyboard.type("printf '\\033[?1000h\\033[?1006h'; cat -v\n")
+  await page.keyboard.type("printf '\\033[?1003h\\033[?1006h'; cat -v\n")
   await page.waitForTimeout(600)
+  await page.mouse.move(box.x + 120, box.y + 80, { steps: 4 })
+  await page.waitForTimeout(300)
+  const hover = await page.locator('.term').innerText()
+  ok('idle mouse movement reaches the app (hover)', /\[<35;\d+;\d+M/.test(hover), (hover.match(/\[<35;\d+;\d+M/) || ['no motion report'])[0])
   await page.mouse.click(box.x + 40, box.y + 40)
   await page.waitForTimeout(400)
   const term = await page.locator('.term').innerText()

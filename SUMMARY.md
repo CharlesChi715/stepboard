@@ -76,8 +76,8 @@ stepboard/
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 86 headless checks pass (5 proxy + 69 parity +
-  5 regression + 7 drag-select), run via `npm test`, non-zero exit on failure.
+- UI is React + Vite + Tailwind; 87 headless checks pass (5 proxy + 69 parity +
+  5 regression + 8 drag-select), run via `npm test`, non-zero exit on failure.
   All but `proxy.mjs` need a live stack on `SB_BASE` (default :8011) serving a
   built `ui/dist`, started with `SB_PROMPTS` pointing somewhere throwaway.
 - There is ONE kind of prompt. `BUILTIN` is a seed for a fresh browser, not a
@@ -149,10 +149,10 @@ stepboard/
   starting one. A left mousedown is held until it moves ≥4px (→ drag, alt
   clones) or is released in place (→ click, re-sent WITHOUT alt, so Claude Code
   gets it). Double/triple-click stay word/line selection.
-- Idle mousemoves over the terminal are swallowed too: with all-motion
-  reporting on, xterm counts each outgoing motion report as user input and
-  clears the selection — so the highlight used to vanish on the first twitch
-  after mouseup.
+- Idle mousemoves pass straight to the app, so Claude Code's hover (and the
+  clicks that act on it) work like the native CLI. Cost: xterm treats its own
+  motion report as input and clears the highlight on the next twitch — fine,
+  because copy-on-select already copied it and `lastSel` keeps it for ⌘⇧L.
 - Multi-session: env pair `SB_SESSION`/`SB_TTYD_PORT`; panel asks GET /config.
 - 2026-08-22 tidy-up: `web/` (vanilla page + /legacy route) deleted — history
   has it at `git show 49f09b0:web/index.html`; tests share `tests/harness.mjs`;

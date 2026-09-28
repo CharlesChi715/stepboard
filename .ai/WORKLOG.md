@@ -490,3 +490,13 @@
   (double/triple click) stays selection.
 - tests/drag-select.mjs: 'plain click reaches the app' (cat -v shows [<0;x;yM).
 - npm test 86/86 on a throwaway stack. Branch: worktree-click-passthrough.
+
+## 2026-09-28 — hover reaches Claude Code
+- Claude Code runs any-motion (1003) + SGR in fullscreen; clicks act on the
+  hovered item, and StepBoard swallowed idle mousemoves, so clicks found no
+  target. useTtyd.js now passes idle moves through (option A).
+- Cost: the xterm highlight clears on the next move; the text is already on
+  the clipboard and in lastSel, so ⌘⇧L still grabs it.
+- tests/drag-select.mjs: highlight-survives check → '⌘⇧L still grabs after a
+  move' + 'idle mouse movement reaches the app'. npm test 87/87.
+- Branch: worktree-hover-passthrough.
