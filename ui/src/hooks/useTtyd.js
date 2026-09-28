@@ -36,16 +36,31 @@ export function useTtyd({ onSelection } = {}) {
     // selection". Do NOT force shift as well: with reporting OFF, xterm's
     // SelectionService reads shift+mousedown as "extend the existing selection",
     // so the first drag would select nothing at all.
-    // Trade-off: mouse clicks never reach the CLI app itself.
-    const clone = e => new MouseEvent(e.type, {
+    const clone = (e, alt = true) => new MouseEvent(e.type, {
       bubbles: true, cancelable: true, composed: true,
       clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY,
       button: e.button, buttons: e.buttons, detail: e.detail,
-      shiftKey: e.shiftKey, altKey: true, metaKey: e.metaKey, ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey, altKey: alt, metaKey: e.metaKey, ctrlKey: e.ctrlKey,
     })
     let dragging = false
+    let pending = null
     const forceSelect = e => {
       if (!e.isTrusted) return                              // our own clones pass through
+      if (pending && e.type === 'mousemove') {
+        e.stopImmediatePropagation()
+        if (Math.hypot(e.clientX - pending.clientX, e.clientY - pending.clientY) < 4) return
+        pending.target.dispatchEvent(clone(pending))
+        pending = null
+        dragging = true
+      }
+      if (pending && e.type === 'mouseup') {
+        e.stopImmediatePropagation()
+        e.preventDefault()
+        pending.target.dispatchEvent(clone(pending, false))
+        pending.target.dispatchEvent(clone(e, false))
+        pending = null
+        return
+      }
       if (e.type === 'mousemove' || e.type === 'mouseup') { // mid-drag: re-target at the
         if (!dragging) {                                    // document, where xterm's
           // Idle moves over the terminal must die here too: with all-motion
@@ -60,9 +75,12 @@ export function useTtyd({ onSelection } = {}) {
         return
       }
       if (!e.target.closest?.('.xterm')) return
-      if (e.type === 'mousedown' && e.button === 0) dragging = true
       e.stopImmediatePropagation()
       e.preventDefault()                                    // kills the native drag too
+      if (e.type === 'mousedown' && e.button === 0) {
+        if (e.detail < 2) { pending = e; return }
+        dragging = true
+      }
       e.target.dispatchEvent(clone(e))
     }
     const MOUSE = ['mousedown', 'mousemove', 'mouseup', 'click', 'dblclick']

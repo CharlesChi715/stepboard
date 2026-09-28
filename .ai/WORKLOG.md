@@ -482,3 +482,11 @@
   Chromium with clipboard permission → badge `· copied`, clipboard = selection.
   Safari not automated (no Playwright WebKit) — the badge self-reports.
 - Branch: worktree-copy-on-select.
+
+## 2026-09-28 — plain clicks reach Claude Code
+- ui/src/hooks/useTtyd.js: left mousedown is held; moving ≥4px makes it a
+  drag (alt clones = selection, as before), releasing in place re-sends
+  down+up without alt so xterm reports the click to the app. detail ≥2
+  (double/triple click) stays selection.
+- tests/drag-select.mjs: 'plain click reaches the app' (cat -v shows [<0;x;yM).
+- npm test 86/86 on a throwaway stack. Branch: worktree-click-passthrough.
