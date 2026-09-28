@@ -467,3 +467,10 @@
   repo root → argv `tmux new -A -s sbverify -c /Users/charles claude`; claude's
   cwd /Users/charles (pane_current_path + lsof).
 - Branch: worktree-claude-s-home-cwd.
+
+## 2026-09-28 — claude-s opens Safari
+- bin/claude-s: `open -a Safari http://localhost:$VITE_PORT` instead of plain
+  `open`, which followed the default browser (Chrome).
+- README + SUMMARY say Safari; SUMMARY's Safari check now notes Safari binds
+  ⌘⇧L (sidebar) and ⌘J itself, so the panel's shortcuts may lose to it.
+- Branch: worktree-claude-s-home-cwd (with the `-c ~` fix).

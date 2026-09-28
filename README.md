@@ -12,7 +12,7 @@ cd ui && npm install && npm run build   # panel deps + a dist for serve.py (firs
                                         # run again → session 2, 3, … own ports each
 ```
 
-The launcher opens the Vite dev server (:5173), so **everything hot-reloads**:
+The launcher opens the Vite dev server (:5173) in Safari, so **everything hot-reloads**:
 edit `ui/src` → the open tab patches itself (HMR); edit `serve.py` → uvicorn
 restarts itself (`--reload`). No rebuild while developing — `npm run build` only
 matters when you want `:800N` (the dist copy uvicorn serves) refreshed.
