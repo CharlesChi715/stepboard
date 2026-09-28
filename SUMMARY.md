@@ -44,7 +44,8 @@ stepboard/
   as-is with a trailing `;` escaped; longer text in 400-char pieces joined by ESC[I (stays under
   Claude's 800-char paste threshold). Enter is always a SEPARATE tmux call.
 - Composer: `/cmd` and `!shell` go raw (no clauses/prompts); the tail line shows what gets appended.
-- Keys: ⌘J term · ⌘K composer · ⌘⇧L grab · ⌥1–9 prompts · ⇧⏎ newline (terminal too); all listed in the
+- Keys: ⌘J term · ⌘K composer · ⌘⇧L grab · ⌥1–9 prompts · ⇧⏎ newline (terminal too) · ⌃⇧Q close
+  board (confirm dialog → POST /api/stop → detached `stop N`); all listed in the
   SHORTCUTS card (lib/keys.js is its single source), foldable, fold state per browser.
   Option-as-Meta is OFF on purpose: ⌥O would toggle Claude's fast mode (credits).
 - What's new: `lib/news.js`; bump `NEWS_ID` to show the popup once more. Tests pre-mark it seen.

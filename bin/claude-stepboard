@@ -100,8 +100,8 @@ while lsof -nP -iTCP:$((8000+N)) -sTCP:LISTEN >/dev/null 2>&1; do
 done
 
 if (( N > 1 )); then
-  read -q "?session(s) 1..$((N-1)) already running — create session $N? [y/n] " || { echo; exit 0 }
-  echo
+  read -r "REPLY?session(s) 1..$((N-1)) already running — create session $N? [Y/n] "
+  [[ -z $REPLY || $REPLY == [yY]* ]] || exit 0
 fi
 
 WEB_PORT=$((8000+N))

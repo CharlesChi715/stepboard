@@ -6,7 +6,7 @@ const OPEN_KEY = 'sb-keys-open'
 const startOpen = () => { try { return localStorage.getItem(OPEN_KEY) !== '0' } catch { return true } }
 const remember = open => { try { localStorage.setItem(OPEN_KEY, open ? '1' : '0') } catch { /* private mode */ } }
 
-export default function Shortcuts({ onNews }) {
+export default function Shortcuts({ onNews, onClose }) {
   const [initiallyOpen] = useState(startOpen)
   return (
     <details className={`shortcuts group ${FIELD_CARD}`} open={initiallyOpen}
@@ -31,8 +31,12 @@ export default function Shortcuts({ onNews }) {
             </dl>
           </section>
         ))}
-        <button className="whats-new self-start cursor-pointer px-0.5 text-[11px] text-armed
-                           underline-offset-2 hover:underline" onClick={onNews}>what's new</button>
+        <div className="flex items-center gap-3 px-0.5 text-[11px]">
+          <button className="whats-new cursor-pointer text-armed underline-offset-2 hover:underline"
+                  onClick={onNews}>what's new</button>
+          <button className="close-link cursor-pointer text-muted underline-offset-2 hover:text-danger
+                             hover:underline" onClick={onClose}>close board</button>
+        </div>
       </div>
     </details>
   )

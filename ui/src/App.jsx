@@ -12,6 +12,7 @@ import Badge from './components/Badge.jsx'
 import LinkPill from './components/LinkPill.jsx'
 import WhatsNew from './components/WhatsNew.jsx'
 import Shortcuts from './components/Shortcuts.jsx'
+import CloseBoard from './components/CloseBoard.jsx'
 import { Length, Format, Edits } from './components/Constraints.jsx'
 
 const KEY_REPORT = new URLSearchParams(location.search).has('keys')
@@ -29,6 +30,7 @@ export default function App() {
   const [showHist, setShowHist] = useState(false)
   const [note, setNote] = useState(null)
   const [news, setNews] = useState(() => !newsSeen())
+  const [closing, setClosing] = useState(false)
   const inputRef = useRef(null)
   const noteTimer = useRef(0)
   const sending = useRef(false)
@@ -113,6 +115,9 @@ export default function App() {
     if (KEY_REPORT && (e.metaKey || e.ctrlKey || e.altKey)) flash(
       `key: ${e.code} meta=${e.metaKey} ctrl=${e.ctrlKey} alt=${e.altKey} hit=${isGrabKey(e)}`)
     if (isGrabKey(e)) { e.preventDefault(); e.stopPropagation(); grab(); return }
+    if (e.ctrlKey && e.shiftKey && !e.metaKey && !e.altKey && e.code === 'KeyQ') {
+      e.preventDefault(); e.stopPropagation(); setClosing(true); return
+    }
     const inTerminal = hostRef.current?.contains(e.target)   // keys typed at the CLI are the CLI's
     const plain = !e.shiftKey && !e.altKey                   // ⌘K/⌘A only — leave ⌘⇧K, ⌥⌘K alone
     if (plain && e.metaKey && (e.code === 'KeyJ' || e.key === 'j')) {
@@ -191,11 +196,12 @@ export default function App() {
         <div className="mt-auto flex flex-col gap-2">
           <button className={`summarize ${BTN}`} onMouseDown={keep}
                   onClick={() => sendComposed('Summarize this session.')}>summarize</button>
-          <Shortcuts onNews={() => setNews(true)} />
+          <Shortcuts onNews={() => setNews(true)} onClose={() => setClosing(true)} />
           <Badge note={note} />
         </div>
       </aside>
       <WhatsNew open={news} onClose={() => setNews(false)} />
+      <CloseBoard open={closing} onClose={() => setClosing(false)} />
     </>
   )
 }

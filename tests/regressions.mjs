@@ -70,6 +70,32 @@ await suite('regressions', async ({ page, ok }) => {
   await page.locator('details.shortcuts summary').click()
   await until(() => page.evaluate(() => localStorage.getItem('sb-keys-open') === '1'))
 
+  const stops = []
+  await page.route('**/api/stop', r => {
+    stops.push(JSON.parse(r.request().postData()))
+    return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' })
+  })
+  const closeOpen = () => page.locator('dialog.close-board[open]')
+  await page.locator('.term').click()
+  await page.keyboard.press('Control+Shift+Q')
+  ok('⌃⇧Q asks before closing, even from the terminal', await until(() => closeOpen().isVisible()))
+  await page.keyboard.press('Escape')
+  ok('esc cancels and closes nothing',
+     await until(async () => (await closeOpen().count()) === 0) && stops.length === 0)
+  await page.click('.panel textarea')
+  await page.keyboard.press('Control+Shift+Q')
+  await until(() => closeOpen().isVisible())
+  await page.keyboard.press('Enter')
+  ok('⏎ closes everything', await until(() => stops.length === 1) && stops[0].keep === false, JSON.stringify(stops))
+  ok('the dialog says it is closing', await until(async () => /closed/.test(await page.locator('.close-state').textContent())))
+  await page.keyboard.press('Escape')
+  await page.click('.close-link')
+  await until(() => closeOpen().isVisible())
+  await page.keyboard.press('Alt+Enter')
+  ok('⌥⏎ keeps claude running', await until(() => stops.length === 2) && stops[1].keep === true, JSON.stringify(stops))
+  await page.keyboard.press('Escape')
+  await page.unroute('**/api/stop')
+
   await page.evaluate(k => { sessionStorage.setItem('sb-news-test', '1'); localStorage.removeItem(k) }, NEWS_KEY)
   await load(page, 'reload')
   ok("what's new opens once after an update", await until(() => page.locator('dialog.news[open]').isVisible()))

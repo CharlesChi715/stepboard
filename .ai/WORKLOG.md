@@ -523,3 +523,5 @@
 - Fixed dev mode: uvicorn crashed on an absolute --reload-exclude for a missing dir (Python 3.14 glob); excludes now only for dirs that exist.
 - SHORTCUTS card at the bottom of the panel (lib/keys.js), foldable; what's new bumped to 2026-09-29.2.
 - Incidents: my cleanup killed the default tmux server (argv looked like a scratch `tmux new`), and a bare `stop` test closed the live sb2. Bare stop now requires exactly one live board.
+
+- 2026-09-29: launcher prompt is [Y/n] (Enter = yes); ⌃⇧Q closes the board from the panel (confirm dialog, POST /api/stop spawns a detached `claude-stepboard stop N`, refuses non-sbN sessions). 140/140 on Chromium + WebKit.
