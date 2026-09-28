@@ -132,7 +132,7 @@ LAUNCHER = os.path.join(HERE, "bin", "claude-stepboard")
 
 
 class Stop(BaseModel):
-    keep: bool = False
+    with_claude: bool = False
 
 
 @api.post("/stop")
@@ -140,7 +140,7 @@ def stop(body: Stop):
     m = re.fullmatch(r"sb(\d+)", SESSION)
     if not m:
         raise HTTPException(400, f"{SESSION} was not started by claude-stepboard")
-    args = [LAUNCHER, "stop", m.group(1)] + (["--keep"] if body.keep else [])
+    args = [LAUNCHER, "stop", m.group(1)] + (["--with-claude"] if body.with_claude else [])
     subprocess.Popen(["/bin/sh", "-c", 'sleep 0.3; exec "$0" "$@"', *args], start_new_session=True,
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return {"ok": True}

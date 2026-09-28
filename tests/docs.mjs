@@ -27,7 +27,7 @@ for (const cmd of ['use', 'dev', 'ls', 'stop', 'man']) {
   ok(`"${cmd}" is in --help and the man page`,
      new RegExp(`claude-stepboard[^\\n]*\\b${cmd}\\b`).test(help.stdout) && new RegExp(`\\bCm ${cmd}\\b`).test(man))
 }
-ok('--keep is documented in both', /--keep/.test(help.stdout) && /Fl -keep/.test(man))
+ok('--with-claude is documented in both', /--with-claude/.test(help.stdout) && /Fl -with-claude/.test(man))
 
 const spoken = k => k
   .replace(/⌃/g, 'Ctrl-').replace(/⌥/g, 'Option-').replace(/⇧/g, 'Shift-').replace(/⌘/g, 'Cmd-')

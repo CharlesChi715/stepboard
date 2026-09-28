@@ -18,7 +18,7 @@ stepboard/
 │       ├── components/ # MessageBar · Constraints · Prompts · History · Badge · LinkPill · WhatsNew · Shortcuts
 │       ├── hooks/      # useTtyd (xterm + ttyd protocol + reconnect) · useHistory · usePrompts
 │       └── lib/        # compose.js (raw/tail/send) · ui.js (class strings, FOCUS) · news.js · keys.js
-├── bin/claude-stepboard  # launcher: [use] · dev · ls · stop [N|all] [--keep]
+├── bin/claude-stepboard  # launcher: [use] · dev · ls · stop [N|all] [--with-claude] · man · --help
 │                         #   (~/.local/bin/claude-stepboard symlinks here)
 ├── man/claude-stepboard.1  # manual; --help is in the launcher; tests/docs.mjs keeps both in sync
 ├── tests/              # proxy · typed.py · security · parity · regressions · drag-select · resilience
@@ -30,12 +30,15 @@ stepboard/
 
 ## Current state (2026-09-29)
 
-- Stack per session N: tmux `sbN` (claude pre-started in `~`) · ttyd on `$TMPDIR/stepboard-N.sock`
+- claude = a Claude-daemon background session per slot (`claude --bg --name "StepBoard N"`, id in
+  `~/.local/state/stepboard/claude-N.id`); tmux `sbN` only runs `claude attach <id>`. Closing the
+  board never stops claude; `--with-claude` / ⌥⏎ does (`claude stop <id>`, chat kept).
+- Stack per session N: tmux viewer `sbN` · ttyd on `$TMPDIR/stepboard-N.sock`
   with `-s KILL` · uvicorn :800N · (dev) Vite :5172+N. Safari opens once `/api/config` answers.
 - `use` mode serves ui/dist from uvicorn (~80 MB, 0% idle CPU), rebuilding if ui/ is newer.
   `dev` = Vite HMR + `uvicorn --reload` on watchfiles, with absolute `--reload-exclude` paths.
-- Close: `claude-stepboard stop [N|all] [--keep]` acts only on `$TMPDIR/stepboard-N.run` (launcher +
-  child PIDs) and exact tmux `=sbN`; bare `stop` needs exactly one live board. Never pkill patterns
+- Close: `claude-stepboard stop [N|all] [--with-claude]` acts only on `$TMPDIR/stepboard-N.run`
+  (launcher + child PIDs), exact tmux `=sbN` and the slot's claude id; bare `stop` needs exactly one live board. Never pkill patterns
   or the tmux server (the server's argv looks like `tmux new …`).
 - Security: no TCP ttyd; `/api/ws` refuses foreign Origin; TrustedHost refuses foreign Host;
   non-GET from a foreign Origin → 403. `tests/security.mjs` guards it.

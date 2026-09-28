@@ -14,7 +14,7 @@
 .Nm
 .Cm stop
 .Op Ar N | Cm all
-.Op Fl -keep
+.Op Fl -with-claude
 .Nm
 .Cm man
 .Nm
@@ -39,9 +39,22 @@ asks
 .Sq create session N? [Y/n] ;
 Enter means yes.
 .Pp
-The claude process lives in tmux, not in the browser.
-Reloading or closing the tab, or pressing Ctrl-C in the launcher window,
-leaves it running, and the next launch re-attaches to it.
+claude runs as a background session in the Claude daemon
+.Pq Li claude --bg ,
+one per board slot, named
+.Dq StepBoard N .
+The board only views it: tmux session
+.Li sb Ns Ar N
+runs
+.Li claude attach Ar id .
+Closing the board \(em the tab, the launcher, Ctrl-C,
+.Cm stop
+or Ctrl-Shift-Q \(em never stops claude.
+The next launch of slot
+.Ar N ,
+or
+.Li claude attach Ar id
+from any terminal, picks it up where it was, draft included.
 .Sh COMMANDS
 .Bl -tag -width Ds
 .It Cm use
@@ -63,31 +76,29 @@ restarts when
 changes.
 About 480 MB per session.
 .It Cm ls
-Lists running sessions: the board
+Lists sessions: the board
 .Pq mode and URL
-and whether claude is alive in tmux
-.Li sb Ns Ar N .
-.It Cm stop Oo Ar N | Cm all Oc Op Fl -keep
-Closes session
+and the slot's claude: its id and status in the Claude daemon.
+.It Cm stop Oo Ar N | Cm all Oc Op Fl -with-claude
+Closes board
 .Ar N :
-stops its servers, closes its Safari tab and ends tmux session
+stops its servers, closes its Safari tab and ends the tmux viewer
 .Li sb Ns Ar N .
+Its claude keeps running in the Claude daemon.
 With
-.Fl -keep ,
-claude stays running in tmux so the next launch re-attaches.
+.Fl -with-claude ,
+that claude is stopped too
+.Pq Li claude stop Ar id ;
+its chat is kept.
 .Cm all
-closes every session.
+closes every board.
 Without
 .Ar N ,
 it acts only when exactly one board is running.
 .Pp
-It only ever touches what the launcher recorded in its run file and the exact
-tmux session name \(em never a name pattern, never the tmux server, never a
-claude outside
-.Li sb Ns Ar N .
-The chat is saved on disk either way;
-.Li /resume
-in claude brings it back.
+It only ever touches what the launcher recorded in its run file, the exact
+tmux session name and the slot's own claude id \(em never a name pattern,
+never the tmux server, never any other claude session.
 .It Cm man
 Shows this page.
 .It Fl h , Fl -help , Cm help
@@ -117,8 +128,8 @@ Arm or disarm prompt 1..9.
 Send, from anywhere outside the terminal.
 .It Cm Ctrl-Shift-Q
 Close this StepBoard.
-It asks first: Return closes everything, Option-Return keeps claude
-running, Escape cancels.
+It asks first: Return closes the board and keeps claude running,
+Option-Return stops claude too, Escape cancels.
 .It Cm Shift-Return
 New line, in the composer and in the terminal.
 .It Cm Up , Cm Down
@@ -159,6 +170,15 @@ reads it; the launcher removes it on exit.
 The ttyd socket.
 Only local processes can reach it; the page talks to it through
 .Pa /api/ws .
+.It Pa ~/.local/state/stepboard/claude-N.id
+The id of slot
+.Ar N Ns 's
+background claude
+.Po
+.Ev XDG_STATE_HOME
+moves it
+.Pc .
+Delete it to give the slot a fresh claude next launch.
 .It Pa prompts.json
 The prompt buttons, next to
 .Pa serve.py ,
@@ -185,11 +205,14 @@ Start the default board and open it in Safari:
 Hack on the panel with hot reload:
 .Dl claude-stepboard dev
 .Pp
-Restart a board to pick up new code, keeping claude alive:
-.Dl claude-stepboard stop 2 --keep && claude-stepboard
+Restart a board to pick up new code; claude keeps running:
+.Dl claude-stepboard stop 2 && claude-stepboard
 .Pp
-Close everything:
-.Dl claude-stepboard stop all
+Open board 2's claude in a plain terminal, without the board:
+.Dl claude attach $(cat ~/.local/state/stepboard/claude-2.id)
+.Pp
+Close every board and stop their claudes:
+.Dl claude-stepboard stop all --with-claude
 .Sh SEE ALSO
 .Xr claude 1 ,
 .Xr tmux 1 ,

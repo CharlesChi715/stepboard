@@ -12,20 +12,24 @@ claude-stepboard                              # use mode: terminal + panel + Saf
 claude-stepboard dev                          # dev mode: the same, plus hot reload
                                               # run again → session 2, 3, … own ports each
 claude-stepboard ls                           # what is running
-claude-stepboard stop [N|all] [--keep]        # close a board: servers, its Safari tab, tmux sbN
+claude-stepboard stop [N|all] [--with-claude] # close a board: servers, Safari tab, tmux viewer
 claude-stepboard --help                       # one-screen summary · `claude-stepboard man` = full manual
 ```
 
+claude runs as a **background session in the Claude daemon** (`claude --bg`),
+one per board slot, named "StepBoard N"; its id lives in
+`~/.local/state/stepboard/claude-N.id`. The board only views it — tmux `sbN` runs
+`claude attach <id>` — so closing the board (the tab, Ctrl-C in the launcher,
+`stop`, or ⌃⇧Q in the panel) never stops claude, and the next launch of that slot
+re-attaches to the same session, draft included. `--with-claude` (⌥⏎ in the
+⌃⇧Q dialog) stops claude too; its chat is kept (`claude attach <id>` reopens it).
+
 Closing is scoped to what the launcher recorded in `$TMPDIR/stepboard-N.run`
-(its own PID and its children's PIDs) plus the exact tmux session `sbN` — never a
-name pattern, never the tmux server, never a claude outside `sbN`. `--keep` leaves
-claude running in tmux so the next launch re-attaches; Ctrl-C in the launcher
-window does the same. A bare `stop` only acts when exactly one board is running. When a session is
-already up, the launcher asks `[Y/n]` — Enter means yes.
-The conversation is saved either way: `/resume` brings it back.
-⌃⇧Q in the panel does the same from the browser (`POST /api/stop`, which only
-works for a session the launcher started). The first time, macOS asks whether
-your terminal may control Safari — that is the tab-closing step.
+(its own PID and its children's PIDs), the exact tmux session `sbN` and the slot's
+own claude id — never a name pattern, never the tmux server, never another claude.
+A bare `stop` only acts when exactly one board is running. When a session is
+already up, the launcher asks `[Y/n]` — Enter means yes. The first ⌃⇧Q close asks
+whether your terminal may control Safari — that is the tab-closing step.
 
 (`claude-stepboard` is a symlink in `~/.local/bin` → `bin/claude-stepboard`.)
 
@@ -88,7 +92,7 @@ When claude exits, press ⏎ in the terminal (or click the pill) to start it aga
 | ⌘K | jump to the input bar |
 | ⌘A | select the input bar's text |
 | ⌥1 … ⌥9 | arm / disarm prompt N (hover a chip to see its number) |
-| ⌃⇧Q | close this StepBoard — asks first: ⏎ close all · ⌥⏎ keep claude · esc cancel |
+| ⌃⇧Q | close this StepBoard, claude keeps running — asks first: ⏎ close · ⌥⏎ also stop claude · esc cancel |
 | Enter | send · Shift+Enter = newline (in the terminal too) |
 | ↑ / ↓ | walk the last 5 messages, once the caret hits the edge |
 

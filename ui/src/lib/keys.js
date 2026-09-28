@@ -7,7 +7,7 @@ export const SHORTCUTS = [
       ['⌘⇧L', 'grab the terminal selection (⌃⇧L too)'],
       ['⌥1–9', 'arm / disarm prompt 1–9'],
       ['⏎', 'send, from anywhere outside the terminal'],
-      ['⌃⇧Q', 'close this StepBoard (asks first)'],
+      ['⌃⇧Q', 'close this StepBoard; claude keeps running (asks first)'],
     ],
   },
   {

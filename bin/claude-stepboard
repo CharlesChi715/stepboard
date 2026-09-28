@@ -3,15 +3,39 @@
 #   claude-stepboard [use]                  use mode: the built panel served by uvicorn on :800N
 #   claude-stepboard dev                    dev mode: Vite HMR on :5172+N, uvicorn --reload on :800N
 #   claude-stepboard ls                     what is running
-#   claude-stepboard stop [N|all] [--keep]  close session N: servers, its Safari tab, tmux sbN
-#                                   (--keep leaves claude running in tmux for next time)
-# Ctrl-C in the launcher window stops its servers and keeps claude running in tmux.
+#   claude-stepboard stop [N|all] [--with-claude]
+#                                   close session N: servers, Safari tab, tmux viewer sbN;
+#                                   claude keeps running in the Claude daemon unless --with-claude
+# claude runs as a daemon background session (`claude --bg`); tmux sbN only runs `claude attach`.
 cd "${0:A:h}/.." || exit 1    # repo root — :A resolves symlinks, so a PATH symlink works
 
 RUN="${TMPDIR:-/tmp}"; RUN="${RUN%/}"
 runfile() { print "$RUN/stepboard-$1.run" }
 sockfile() { print "$RUN/stepboard-$1.sock" }
 alive() { kill -0 $1 2>/dev/null && [[ $(ps -o command= -p $1) == *claude-s* ]] }
+
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/stepboard"
+idfile() { print "$STATE/claude-$1.id" }
+claude_id() { local f=$(idfile $1); [[ -r $f ]] && print -r -- "$(<$f)" }
+agents() { AGENTS=$(claude agents --json --all 2>/dev/null) }
+bg_status() {  # bg_status <id> → the daemon's status for it, or "gone"; needs $AGENTS
+  print -r -- ${AGENTS:-[]} | python3 -c 'import json, sys
+i = sys.argv[1]
+s = [a for a in json.load(sys.stdin) if a.get("id") == i]
+print(s[0].get("status") or "stopped" if s else "gone")' $1
+}
+
+ensure_claude() {  # ensure_claude <N> → sets CLAUDE_ID, starting a background session if needed
+  local id=$(claude_id $1)
+  agents
+  if [[ -z $id || $(bg_status $id) == gone ]]; then
+    id=$(cd ~ && claude --bg --name "StepBoard $1" 2>&1 | sed $'s/\x1b\\[[0-9;]*m//g' |
+         sed -n 's/.*backgrounded · \([0-9a-f]*\).*/\1/p')
+    [[ -n $id ]] || { print -u2 "claude-stepboard: could not start a background claude"; return 1 }
+    mkdir -p $STATE && print -r -- $id > $(idfile $1)
+  fi
+  CLAUDE_ID=$id
+}
 
 boards() {
   local f n
@@ -20,15 +44,21 @@ boards() {
 }
 
 list() {
-  local n LAUNCHER MODE URLS any=0
-  for n in ${(nu)$(boards)}; do
+  local n LAUNCHER MODE URLS any=0 f id
+  agents
+  local slots=(${(nu)$(boards)})
+  for f in $STATE/claude-*.id(N); do slots+=${${f:t:r}#claude-}; done
+  for n in ${(nu)slots}; do
     any=1
     local board='no board' claude='—'
     if [[ -e $(runfile $n) ]]; then
       source $(runfile $n)
       alive $LAUNCHER && board="$MODE  ${URLS[1]}" || board='stale run file'
     fi
-    tmux has -t "=sb$n" 2>/dev/null && claude="tmux sb$n"
+    id=$(claude_id $n)
+    if [[ -n $id ]]; then claude="$id ($(bg_status $id), daemon)"
+    elif tmux has -t "=sb$n" 2>/dev/null; then claude="inside tmux sb$n"
+    fi
     printf '  session %-3s %-34s claude: %s\n' $n $board $claude
   done
   (( any )) || print '  no StepBoard sessions'
@@ -43,9 +73,9 @@ close_tabs() {
   done
 }
 
-stop_one() {  # stop_one <N> <keep>
-  local n=$1 keep=$2 f=$(runfile $1) LAUNCHER MODE URLS KIDS p
-  if [[ ! -e $f ]] && ! tmux has -t "=sb$n" 2>/dev/null; then
+stop_one() {  # stop_one <N> <with_claude>
+  local n=$1 end=$2 f=$(runfile $1) LAUNCHER MODE URLS KIDS p id=$(claude_id $1)
+  if [[ ! -e $f ]] && ! tmux has -t "=sb$n" 2>/dev/null && [[ -z $id ]]; then
     print "  no session $n"; return
   fi
   if [[ -e $f ]]; then
@@ -60,12 +90,14 @@ stop_one() {  # stop_one <N> <keep>
     fi
     close_tabs $URLS
   fi
-  if (( ! keep )) && tmux has -t "=sb$n" 2>/dev/null; then
-    tmux kill-session -t "=sb$n"
-    print "  session $n closed — board, tab and tmux sb$n (resume the chat with /resume)"
+  tmux has -t "=sb$n" 2>/dev/null && tmux kill-session -t "=sb$n"
+  if [[ -z $id ]]; then
+    print "  session $n closed (its claude ran inside tmux — /resume brings the chat back)"
+  elif (( end )); then
+    claude stop $id >/dev/null 2>&1
+    print "  session $n closed, claude $id stopped (the chat is kept: claude attach $id)"
   else
-    (( keep )) && print "  session $n board closed — claude still running in tmux sb$n" \
-               || print "  session $n board closed"
+    print "  session $n closed — claude $id keeps running in the background (claude attach $id)"
   fi
 }
 
@@ -77,15 +109,18 @@ usage:
   claude-stepboard [use]                    start a board: built panel on :800N (default)
   claude-stepboard dev                      start a board with hot reload (Vite :5172+N)
   claude-stepboard ls                       list running sessions
-  claude-stepboard stop [N|all] [--keep]    close session N: servers, Safari tab, tmux sbN
-                                              --keep  leave claude running in tmux
-                                              no N    only when exactly one board is up
+  claude-stepboard stop [N|all] [--with-claude]
+                                            close session N: servers, Safari tab, tmux viewer;
+                                            claude keeps running in the Claude daemon
+                                              --with-claude  stop that claude too (chat kept)
+                                              no N           only when exactly one board is up
   claude-stepboard man                      the full manual
   claude-stepboard -h | --help | help       this summary
 
 A second launch asks "create session N? [Y/n]" — Enter means yes.
-Ctrl-C in this window stops the board and keeps claude in tmux; the chat is
-always saved, and /resume in claude brings it back.
+claude runs as a background session in the Claude daemon, one per board slot;
+the board only views it (`claude attach`). Ctrl-C here closes the board, and
+the next launch — or `claude attach <id>` anywhere — picks claude up again.
 
 in the panel:  ⌘J terminal · ⌘K composer · ⌘⇧L grab · ⌥1–9 prompts · ⌃⇧Q close
 EOF
@@ -99,9 +134,11 @@ esac
 
 if [[ $1 == stop ]]; then
   shift
-  local keep=0 which=
-  for a in $@; do [[ $a == --keep ]] && keep=1 || which=$a; done
+  local end=0 which=
+  for a in $@; do [[ $a == --with-claude ]] && end=1 || which=$a; done
   local all=(${(nu)$(boards)})
+  local f; for f in $STATE/claude-*.id(N); do (( end )) && all+=${${f:t:r}#claude-}; done
+  all=(${(nu)all})
   (( ${#all} )) || { print '  nothing to stop'; exit 0 }
   if [[ -z $which ]]; then
     local mine=() f
@@ -112,7 +149,7 @@ if [[ $1 == stop ]]; then
   [[ $which == all ]] && targets=($all) || targets=($which)
   for n in $targets; do
     [[ $n == <-> ]] || { print "not a session number: $n"; exit 2 }
-    stop_one $n $keep
+    stop_one $n $end
   done
   exit 0
 fi
@@ -178,13 +215,16 @@ cleanup() {
     sleep 0.05
   done
   for p in $KIDS; do kill -KILL $p 2>/dev/null; done
+  tmux has -t "=$SESSION" 2>/dev/null && tmux kill-session -t "=$SESSION"
   rm -f $RUNFILE $SOCK
-  print -P "\n%F{8}── stepboard $N stopped · claude still in tmux $SESSION · claude-stepboard stop $N ends it ──%f"
+  print -P "\n%F{8}── stepboard $N closed · claude $CLAUDE_ID keeps running in the background ──%f"
   exit 0
 }
 trap cleanup INT TERM EXIT
 
-CLAUDE=(claude)
+ensure_claude $N || exit 1
+print -P "%F{8}── claude: background session $CLAUDE_ID (StepBoard $N) ──%f"
+CLAUDE=(claude attach $CLAUDE_ID)
 tmux has -t "=$SESSION" 2>/dev/null || tmux new -d -s "$SESSION" -c ~ $CLAUDE
 rm -f $SOCK
 ttyd -W -i $SOCK -s KILL tmux new -A -s "$SESSION" -c ~ $CLAUDE \

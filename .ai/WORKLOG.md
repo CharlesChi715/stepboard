@@ -527,3 +527,5 @@
 - 2026-09-29: launcher prompt is [Y/n] (Enter = yes); ⌃⇧Q closes the board from the panel (confirm dialog, POST /api/stop spawns a detached `claude-stepboard stop N`, refuses non-sbN sessions). 140/140 on Chromium + WebKit.
 
 - 2026-09-29: claude-stepboard --help / -h / help and `man` subcommand; man/claude-stepboard.1 (mdoc, lint-clean); tests/docs.mjs keeps --help, the man page and lib/keys.js in sync.
+
+- 2026-09-29: claude now runs as a Claude-daemon background session per slot (claude --bg, id in ~/.local/state/stepboard/claude-N.id); tmux sbN only runs `claude attach`. Closing the board (⌃⇧Q, stop, Ctrl-C) keeps claude; --with-claude / ⌥⏎ stops it. Verified live: close → claude alive → relaunch re-attaches the same id. 162/162 Chromium + WebKit.

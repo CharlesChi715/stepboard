@@ -1,4 +1,4 @@
-export const NEWS_ID = '2026-09-29.3'
+export const NEWS_ID = '2026-09-29.4'
 export const NEWS_KEY = 'sb-news-seen'
 
 export const KEYS = [
@@ -21,7 +21,8 @@ export const NEWS = [
   {
     title: 'Lighter',
     items: [
-      ['⌃⇧Q closes this StepBoard from the panel: ⏎ closes everything, ⌥⏎ keeps claude running in tmux, esc cancels.', 'Press ⌃⇧Q, then esc.'],
+      ['Claude now runs as a background session in the Claude daemon, one per board. Closing the board never stops it; the next launch picks it up.', 'Run claude-stepboard ls.'],
+      ['⌃⇧Q closes this StepBoard — tab, terminal bridge, tmux, servers — while claude keeps running. ⌥⏎ stops claude too; esc cancels.', 'Press ⌃⇧Q, then esc.'],
       ['When a session is already running, the launcher now asks [Y/n]: just press Enter for yes.', null],
       ['claude-stepboard stop closes a board cleanly: its servers, its Safari tab and its tmux session — nothing else. Add --keep to leave claude running; claude-stepboard ls shows what is up.', 'Run claude-stepboard ls.'],
       ['claude-stepboard now runs "use" mode: the built panel on :800N, no Vite, no reloader (~80 MB instead of ~480 MB).', 'Run claude-stepboard dev for the old hot-reload setup.'],
