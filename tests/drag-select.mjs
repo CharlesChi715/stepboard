@@ -53,4 +53,13 @@ await suite('drag-select', async ({ page, ok }) => {
   await page.keyboard.type('echo STILL_TYPING_OK\n')
   await page.waitForTimeout(700)
   ok('typing still reaches the shell', (await page.locator('.term').innerText()).includes('STILL_TYPING_OK'))
+
+  await page.keyboard.press('Control+C')
+  await page.keyboard.type("printf '\\033[?1000h\\033[?1006h'; cat -v\n")
+  await page.waitForTimeout(600)
+  await page.mouse.click(box.x + 40, box.y + 40)
+  await page.waitForTimeout(400)
+  const term = await page.locator('.term').innerText()
+  ok('plain click reaches the app', /\[<0;\d+;\d+M/.test(term), (term.match(/\[<0;\d+;\d+M/) || ['no press report'])[0])
+  await page.keyboard.press('Control+C')
 })

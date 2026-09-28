@@ -76,8 +76,8 @@ stepboard/
 - Focus flips both ways: ⌘J → CLI, ⌘K → input bar (J/K in screen order). ⌘ is
   safe because xterm emits no bytes for it; a ⌃ combo would need the
   `attachCustomKeyEventHandler` guard, like ⌃⇧L has.
-- UI is React + Vite + Tailwind; 85 headless checks pass (5 proxy + 69 parity +
-  5 regression + 6 drag-select), run via `npm test`, non-zero exit on failure.
+- UI is React + Vite + Tailwind; 86 headless checks pass (5 proxy + 69 parity +
+  5 regression + 7 drag-select), run via `npm test`, non-zero exit on failure.
   All but `proxy.mjs` need a live stack on `SB_BASE` (default :8011) serving a
   built `ui/dist`, started with `SB_PROMPTS` pointing somewhere throwaway.
 - There is ONE kind of prompt. `BUILTIN` is a seed for a fresh browser, not a
@@ -146,7 +146,9 @@ stepboard/
 - Drag in the terminal selects text even while Claude Code has mouse reporting
   on: mouse events are re-dispatched as alt-carrying clones (force selection).
   Never force shift too — that makes xterm extend a selection instead of
-  starting one. Cost: mouse clicks never reach the CLI app itself.
+  starting one. A left mousedown is held until it moves ≥4px (→ drag, alt
+  clones) or is released in place (→ click, re-sent WITHOUT alt, so Claude Code
+  gets it). Double/triple-click stay word/line selection.
 - Idle mousemoves over the terminal are swallowed too: with all-motion
   reporting on, xterm counts each outgoing motion report as user input and
   clears the selection — so the highlight used to vanish on the first twitch
