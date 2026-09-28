@@ -51,7 +51,13 @@ export default function App() {
     return why
   }, [remove])
 
-  const onSelection = useCallback(s => flash(`selected: ${s.length} chars`), [flash])
+  const onSelection = useCallback(s => {
+    const n = `selected: ${s.length} chars`
+    flash(n)
+    navigator.clipboard.writeText(s).then(
+      () => flash(`${n} · copied`),
+      () => flash(`${n} · clipboard blocked`, true))
+  }, [flash])
   const onKeyReport = useCallback(e => flash(
     `key: ${e.code} meta=${e.metaKey} ctrl=${e.ctrlKey} alt=${e.altKey} hit=${isGrabKey(e)}`), [flash])
   const { hostRef, takeSelection, focusTerm } = useTtyd({ onSelection })

@@ -474,3 +474,11 @@
 - README + SUMMARY say Safari; SUMMARY's Safari check now notes Safari binds
   ⌘⇧L (sidebar) and ⌘J itself, so the panel's shortcuts may lose to it.
 - Branch: worktree-claude-s-home-cwd (with the `-c ~` fix).
+
+## 2026-09-28 — copy-on-select
+- ui/src/App.jsx: onSelection writes the selection to the clipboard and
+  reports `· copied` / `· clipboard blocked` after `selected: N chars`.
+- Verified: npm test 85/85 on a throwaway stack (:8011/:7690, private tmux);
+  Chromium with clipboard permission → badge `· copied`, clipboard = selection.
+  Safari not automated (no Playwright WebKit) — the badge self-reports.
+- Branch: worktree-copy-on-select.
