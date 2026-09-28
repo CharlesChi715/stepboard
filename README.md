@@ -20,7 +20,7 @@ matters when you want `:800N` (the dist copy uvicorn serves) refreshed.
 Manual equivalent for session 1:
 
 ```sh
-ttyd -W -i lo0 -p 7681 tmux new -A -s sb1 claude
+ttyd -W -i lo0 -p 7681 tmux new -A -s sb1 -c ~ claude
 SB_SESSION=sb1 SB_TTYD_PORT=7681 uv run uvicorn serve:app --port 8001 --reload
 cd ui && SB_PORT=8001 npm run dev       # :5173, HMR, proxies /config + /send
 ```
@@ -42,6 +42,8 @@ Two doors into one room. The panel draws the terminal **itself** with xterm.js �
 no iframe — so the selection belongs to our page; that is what makes ⌘⇧L
 possible. The composer goes through the typing door (`serve.py` → `tmux
 send-keys`). The tmux session survives reloads and restarts: `tmux attach -t sb1`.
+Claude starts in `~` (`-c ~`), not the repo — only the servers need the repo
+root. `-A` re-attaches a surviving session, which keeps the folder it started in.
 
 Each `claude-s` run adds an independent session — its own tmux, ttyd, and panel:
 

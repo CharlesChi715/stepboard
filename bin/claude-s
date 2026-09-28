@@ -44,7 +44,7 @@ tag() {  # tag <label> <ansi-color-code>
 
 print -P "%F{8}── stepboard $N ── term :$TTYD_PORT · api :$WEB_PORT · ui ${URL} http://localhost:$VITE_PORT ${RESET}%F{8} ──%f"
 
-ttyd -W -i lo0 -p $TTYD_PORT tmux new -A -s $SESSION claude 2>&1 | tag ttyd 36 &
+ttyd -W -i lo0 -p $TTYD_PORT tmux new -A -s $SESSION -c ~ claude 2>&1 | tag ttyd 36 &
 # PYTHONUNBUFFERED: print() into a pipe block-buffers, which would hold back
 # serve.py's POST /send lines for minutes; force line-by-line delivery.
 SB_SESSION=$SESSION SB_TTYD_PORT=$TTYD_PORT PYTHONUNBUFFERED=1 \
