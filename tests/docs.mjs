@@ -32,6 +32,8 @@ for (const [label, args] of [['help stop', ['help', 'stop']], ['stop --help', ['
 const listJson = run('list', '--json')
 let parsed = null
 try { parsed = JSON.parse(listJson.stdout) } catch { parsed = null }
+const removed = run('stop', '--with-claude')
+ok('--with-claude is refused with a pointer to claude stop', removed.status === 2 && /claude stop <id>/.test(removed.stderr))
 ok('list --json is a JSON array on stdout', listJson.status === 0 && Array.isArray(parsed))
 
 let lint = ''
@@ -44,8 +46,8 @@ for (const cmd of ['start', 'list', 'stop', 'man', 'help']) {
   ok(`"${cmd}" is in --help and the man page`,
      new RegExp(`claude-stepboard[^\\n]*\\b${cmd}\\b`).test(help.stdout) && new RegExp(`\\bCm ${cmd}\\b`).test(man))
 }
-for (const flag of ['--all', '--with-claude', '--dev', '--yes', '--no-input', '--no-open', '--json', '--version']) {
-  const r = flag === '--version' ? help : (['--all', '--with-claude'].includes(flag) ? run('stop', '--help')
+for (const flag of ['--all', '--dev', '--yes', '--no-input', '--no-open', '--json', '--version']) {
+  const r = flag === '--version' ? help : (flag === '--all' ? run('stop', '--help')
           : flag === '--json' ? run('list', '--help') : run('start', '--help'))
   ok(`${flag} is in --help and the man page`, r.stdout.includes(flag) && man.includes(`Fl ${flag.slice(1)}`))
 }

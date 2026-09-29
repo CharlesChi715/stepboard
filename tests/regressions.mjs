@@ -72,7 +72,7 @@ await suite('regressions', async ({ page, ok }) => {
 
   const stops = []
   await page.route('**/api/stop', r => {
-    stops.push(JSON.parse(r.request().postData()))
+    stops.push(r.request().method())
     return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' })
   })
   const closeOpen = () => page.locator('dialog.close-board[open]')
@@ -86,13 +86,14 @@ await suite('regressions', async ({ page, ok }) => {
   await page.keyboard.press('Control+Shift+Q')
   await until(() => closeOpen().isVisible())
   await page.keyboard.press('Enter')
-  ok('⏎ closes the board and keeps claude', await until(() => stops.length === 1) && stops[0].with_claude === false, JSON.stringify(stops))
+  ok('⏎ closes the board', await until(() => stops.length === 1), JSON.stringify(stops))
   ok('the dialog says it is closing', await until(async () => /closed/.test(await page.locator('.close-state').textContent())))
   await page.keyboard.press('Escape')
   await page.click('.close-link')
   await until(() => closeOpen().isVisible())
+  ok('the dialog offers only Close and Cancel', (await page.locator('dialog.close-board button').count()) === 2)
   await page.keyboard.press('Alt+Enter')
-  ok('⌥⏎ also stops claude', await until(() => stops.length === 2) && stops[1].with_claude === true, JSON.stringify(stops))
+  ok('⌥⏎ does nothing special any more', !(await until(() => stops.length > 1, 600)))
   await page.keyboard.press('Escape')
   await page.unroute('**/api/stop')
 

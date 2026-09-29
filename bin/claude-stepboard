@@ -89,7 +89,7 @@ Examples:
 Usage:
   $PROG [start] [--dev] [-y] [--no-open]
   $PROG list [--json]                        (alias: ls)
-  $PROG stop [N...] [-a|--all] [--with-claude]
+  $PROG stop [N...] [-a|--all]
   $PROG man
   $PROG help [COMMAND]  ·  $PROG -h | --help  ·  $PROG --version
 
@@ -151,12 +151,14 @@ Without N, acts only when exactly one board is running.
 
 Options:
   -a, --all          every slot
-      --with-claude  also stop those boards' claude sessions (chats are kept)
   -h, --help         this help
+
+StepBoard never stops claude. To stop one yourself: claude stop <id>
+(ids: $PROG list).
 
 Examples:
   $PROG stop 2
-  $PROG stop --all --with-claude
+  $PROG stop --all
 EOF
 }
 
@@ -232,8 +234,8 @@ close_tabs() {
   done
 }
 
-stop_one() {  # stop_one <N> <with_claude>
-  local n=$1 end=$2 f=$(runfile $1) LAUNCHER MODE URLS KIDS p id=$(claude_id $1) left
+stop_one() {  # stop_one <N>
+  local n=$1 f=$(runfile $1) LAUNCHER MODE URLS KIDS p id=$(claude_id $1) left
   left=(${(f)"$(leftover_pids $n)"})
   if [[ ! -e $f ]] && ! tmux has -t "=sb$n" 2>/dev/null && [[ -z $id && ${#left} -eq 0 ]]; then
     note "  no session $n"; return 1
@@ -261,9 +263,6 @@ stop_one() {  # stop_one <N> <with_claude>
   tmux has -t "=sb$n" 2>/dev/null && tmux kill-session -t "=sb$n"
   if [[ -z $id ]]; then
     [[ -e $f || ${#left} -eq 0 ]] && note "  session $n closed"
-  elif (( end )); then
-    claude stop $id >/dev/null 2>&1
-    note "  session $n closed, claude $id stopped (the chat is kept: claude attach $id)"
   else
     note "  session $n closed — claude $id keeps running in the background (claude attach $id)"
   fi
@@ -274,7 +273,9 @@ cmd_stop() {
   zparseopts -D -E -F -- h=help -help=help a=all -all=all -with-claude=withc -no-color=nocolor 2>/dev/null ||
     die "unknown option" "Run '$PROG stop --help' for usage."
   (( ${#help} )) && { help_stop; exit 0 }
-  local ops=(${@:#--}) end=$(( ${#withc} > 0 ))
+  (( ${#withc} )) && die "--with-claude was removed: StepBoard never stops claude." \
+    "To stop one yourself: claude stop <id>  (ids: $PROG list)"
+  local ops=(${@:#--})
   if [[ ${ops[(I)all]} -gt 0 ]]; then
     warn "'stop all' is now 'stop --all'."
     ops=(${ops:#all}); all=(--all)
@@ -284,8 +285,6 @@ cmd_stop() {
   if (( ${#all} )); then
     local s; for s in ${(nu)$(known_slots)}; do
       if [[ -n $(board_pid $s) || -n $(leftover_pids $s) ]] || tmux has -t "=sb$s" 2>/dev/null; then
-        targets+=$s
-      elif (( end )) && [[ -n $(claude_id $s) ]]; then
         targets+=$s
       fi
     done
@@ -300,7 +299,7 @@ cmd_stop() {
     targets=($live)
   fi
   local rc=0
-  for n in $targets; do stop_one $n $end || rc=1; done
+  for n in $targets; do stop_one $n || rc=1; done
   return $rc
 }
 

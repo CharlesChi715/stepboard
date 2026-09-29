@@ -26,8 +26,8 @@ ok('a cross-site write is refused', await raw('/api/prompts', { Host: HOST, Orig
   'Content-Type': 'application/json' }, 'DELETE') === 403)
 ok('close-board refuses a cross-site request', await raw('/api/stop', { Host: HOST, Origin: 'https://evil.example',
   'Content-Type': 'application/json' }, 'POST') === 403)
-ok('close-board refuses a session claude-stepboard did not start', await raw('/api/stop', { Host: HOST,
-  'Content-Type': 'application/json', 'Content-Length': '2' }, 'POST', '{}') === 400)
+ok('close-board refuses a session claude-stepboard did not start',
+   await raw('/api/stop', { Host: HOST, 'Content-Length': '0' }, 'POST') === 400)
 ok('the terminal accepts its own origin', await raw('/api/ws', upgrade({ Host: HOST, Origin: `http://${HOST}` })) === 101)
 ok('the terminal refuses a foreign origin', await raw('/api/ws', upgrade({ Host: HOST, Origin: 'https://evil.example' })) !== 101)
 ok('the terminal refuses a rebound host', await raw('/api/ws', upgrade({ Host: 'evil.example', Origin: 'http://evil.example' })) !== 101)

@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { BTN, BTN_SEND, FOCUS, HINT } from '../lib/ui.js'
 
-async function stopBoard(withClaude) {
-  const r = await fetch('/api/stop', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ with_claude: withClaude }),
-    signal: AbortSignal.timeout(4000),
-  })
+async function stopBoard() {
+  const r = await fetch('/api/stop', { method: 'POST', signal: AbortSignal.timeout(4000) })
   if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail || `HTTP ${r.status}`)
 }
 
@@ -21,20 +16,13 @@ export default function CloseBoard({ open, onClose }) {
     if (!open && d.open) d.close()
   }, [open])
 
-  const go = withClaude => {
+  const go = () => {
     setState('closing')
-    stopBoard(withClaude).then(() => setState(withClaude ? 'ended' : 'closed'),
-                               e => setState(`failed: ${e.message}`))
+    stopBoard().then(() => setState('closed'), e => setState(`failed: ${e.message}`))
   }
 
-  const onKeyDown = e => {
-    if (e.key === 'Enter' && e.altKey) { e.preventDefault(); go(true) }
-  }
-
-  const done = state === 'closed' || state === 'ended'
   return (
-    <dialog ref={ref} onClose={() => { setState(null); onClose() }} onKeyDown={onKeyDown}
-            aria-labelledby="close-title"
+    <dialog ref={ref} onClose={() => { setState(null); onClose() }} aria-labelledby="close-title"
             className="close-board m-auto w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-edge bg-card
                        p-5 text-[13px] text-ink shadow-2xl shadow-black/70 backdrop:bg-black/60">
       <h2 id="close-title" className="text-base font-semibold">Close this StepBoard?</h2>
@@ -42,12 +30,10 @@ export default function CloseBoard({ open, onClose }) {
         Closes this tab, the terminal bridge and tmux. Claude keeps running in the background —
         the next <kbd>claude-stepboard</kbd> picks it up again.
       </p>
-      {!done && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+      {state !== 'closed' && (
+        <div className="mt-4 flex items-center gap-2">
           <button className={`close-all ${BTN_SEND} ${FOCUS}`} autoFocus disabled={state === 'closing'}
-                  onClick={() => go(false)}>Close <span className="font-normal opacity-60">⏎</span></button>
-          <button className={`close-end ${BTN}`} disabled={state === 'closing'}
-                  onClick={() => go(true)}>Also stop claude <span className="text-muted">⌥⏎</span></button>
+                  onClick={go}>Close <span className="font-normal opacity-60">⏎</span></button>
           <button className={`close-cancel ml-auto ${BTN}`} onClick={() => ref.current.close()}>
             Cancel <span className="text-muted">esc</span></button>
         </div>
@@ -56,7 +42,6 @@ export default function CloseBoard({ open, onClose }) {
         <p className={`close-state mt-3 text-[12px] ${state.startsWith('failed') ? 'text-danger' : 'text-good'}`}>
           {state === 'closing' ? 'closing…'
             : state === 'closed' ? 'closed — claude keeps running; this tab will close in a moment'
-            : state === 'ended' ? 'closed and claude stopped — the chat is kept'
             : state}
         </p>
       )}

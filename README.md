@@ -12,7 +12,7 @@ claude-stepboard                              # start a board: terminal + panel 
 claude-stepboard start --dev                  # the same, plus hot reload
                                               # run again → session 2, 3, … own ports each
 claude-stepboard list                         # what is running (--json for scripts; alias ls)
-claude-stepboard stop [N...] [-a|--all] [--with-claude]
+claude-stepboard stop [N...] [-a|--all]
                                               # close boards: servers, Safari tab, tmux viewer
 claude-stepboard help [command] · --version   # help · `claude-stepboard man` = full manual
 ```
@@ -22,8 +22,8 @@ one per board slot, named "StepBoard N"; its id lives in
 `~/.local/state/stepboard/claude-N.id`. The board only views it — tmux `sbN` runs
 `claude attach <id>` — so closing the board (the tab, Ctrl-C in the launcher,
 `stop`, or ⌃⇧Q in the panel) never stops claude, and the next launch of that slot
-re-attaches to the same session, draft included. `--with-claude` (⌥⏎ in the
-⌃⇧Q dialog) stops claude too; its chat is kept (`claude attach <id>` reopens it).
+re-attaches to the same session, draft included. StepBoard never stops claude;
+to stop one yourself, `claude stop <id>` (the chat is kept; `claude attach <id>` reopens it).
 
 Closing is scoped to what the launcher recorded in `$TMPDIR/stepboard-N.run`
 (its own PID and its children's PIDs), the exact tmux session `sbN` and the slot's
@@ -97,7 +97,7 @@ When claude exits, press ⏎ in the terminal (or click the pill) to start it aga
 | ⌘K | jump to the input bar |
 | ⌘A | select the input bar's text |
 | ⌥1 … ⌥9 | arm / disarm prompt N (hover a chip to see its number) |
-| ⌃⇧Q | close this StepBoard, claude keeps running — asks first: ⏎ close · ⌥⏎ also stop claude · esc cancel |
+| ⌃⇧Q | close this StepBoard, claude keeps running — asks first: ⏎ close · esc cancel |
 | Enter | send · Shift+Enter = newline (in the terminal too) |
 | ↑ / ↓ | walk the last 5 messages, once the caret hits the edge |
 

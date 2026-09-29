@@ -18,7 +18,6 @@
 .Cm stop
 .Op Ar N ...
 .Op Fl a | Fl -all
-.Op Fl -with-claude
 .Nm
 .Cm man
 .Nm
@@ -110,19 +109,20 @@ is an alias.
 With
 .Fl -json ,
 prints one JSON array on standard output.
-.It Cm stop Oo Ar N ... Oc Oo Fl a Oc Op Fl -with-claude
+.It Cm stop Oo Ar N ... Oc Op Fl a
 Closes the given boards: stops their servers, closes their Safari tabs, ends
 the tmux viewers
 .Li sb Ns Ar N ,
 and removes any leftover API server on port 8000+N.
-Their claude sessions keep running in the Claude daemon.
+Their claude sessions keep running in the Claude daemon: StepBoard never
+stops claude.
+To stop one yourself, run
+.Li claude stop Ar id
+.Pq ids are in Cm list ;
+its chat is kept.
 .Bl -tag -width Ds
 .It Fl a , Fl -all
 Every slot.
-.It Fl -with-claude
-Also stop those boards' claude sessions
-.Pq Li claude stop Ar id ;
-their chats are kept.
 .El
 .Pp
 Without
@@ -188,8 +188,8 @@ Arm or disarm prompt 1..9.
 Send, from anywhere outside the terminal.
 .It Cm Ctrl-Shift-Q
 Close this StepBoard.
-It asks first: Return closes the board and keeps claude running,
-Option-Return stops claude too, Escape cancels.
+It asks first: Return closes the board, Escape cancels.
+claude keeps running either way.
 .It Cm Shift-Return
 New line, in the composer and in the terminal.
 .It Cm Up , Cm Down
@@ -285,8 +285,8 @@ See what is running, or feed it to a script:
 .Dl claude-stepboard list
 .Dl claude-stepboard list --json | jq '.[].claude'
 .Pp
-Close every board and stop their claudes:
-.Dl claude-stepboard stop --all --with-claude
+Close every board (their claudes keep running):
+.Dl claude-stepboard stop --all
 .Pp
 Open board 2's claude in a plain terminal, without the board:
 .Dl claude attach $(cat ~/.local/state/stepboard/claude-2.id)

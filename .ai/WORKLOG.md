@@ -531,3 +531,5 @@
 - 2026-09-29: claude now runs as a Claude-daemon background session per slot (claude --bg, id in ~/.local/state/stepboard/claude-N.id); tmux sbN only runs `claude attach`. Closing the board (⌃⇧Q, stop, Ctrl-C) keeps claude; --with-claude / ⌥⏎ stops it. Verified live: close → claude alive → relaunch re-attaches the same id. 162/162 Chromium + WebKit.
 
 - 2026-09-29: CLI reworked to clig.dev + POSIX/GNU (~/.agents/guidelines): start/list/stop/man/help subcommands, zparseopts, --version, per-command help, did-you-mean, -y/--no-input (prompt only on a TTY), NO_COLOR, stop N.../--all, list --json, exit 0/1/2; old use/dev/stop all warn. One slot model: list shows leftovers (API server holding :800N with no board) and stop N removes them — explains the "session 1 already running" with an empty ls.
+
+- 2026-09-29: removed "Also stop claude" (⌥⏎), /api/stop with_claude and `stop --with-claude` at Charles's request — StepBoard never stops claude; `--with-claude` now exits 2 pointing at `claude stop <id>`. 178/178 Chromium + WebKit.
